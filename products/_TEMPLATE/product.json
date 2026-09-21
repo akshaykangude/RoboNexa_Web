@@ -1,0 +1,44 @@
+{
+  "id": "MY-PRODUCT-ID",
+  "name": "Full product name shown on the store",
+  "brand": "ROBONEXA",
+  "category": "actuators",
+  "icon": "actuator",
+  "price": 9999,
+  "mrp": 12999,
+  "stock": 25,
+  "country": "India",
+
+  "_comment_images": "Put photo files in the images/ folder, then list their names here. First image is the main one.",
+  "images": ["images/1.jpg", "images/2.jpg", "images/3.jpg"],
+
+  "_comment_videos": "Put .mp4 files in videos/ and list them here. They show on the product page.",
+  "videos": ["videos/demo.mp4"],
+
+  "desc": "One or two sentences describing the product.",
+  "warranty": "1 year manufacturer warranty against defects.",
+
+  "key": ["tag 1", "tag 2", "tag 3"],
+  "highlights": ["First selling point", "Second selling point", "Third selling point"],
+
+  "specs": {
+    "Spec name": "Spec value",
+    "Voltage": "48 V DC",
+    "Weight": "640 g"
+  },
+
+  "_comment_docs": "Datasheets, CAD, SDK, dimensions. Put the files in docs/ and reference them here. These become working Download buttons on the live site.",
+  "docs": [
+    { "title": "Datasheet", "note": "PDF", "file": "docs/datasheet.pdf" },
+    { "title": "CAD model (STEP)", "note": "STEP", "file": "docs/model.step" },
+    { "title": "Dimensions drawing", "note": "PDF", "file": "docs/dimensions.pdf" }
+  ],
+
+  "software": [
+    { "title": "SDK / driver", "note": "ZIP", "file": "docs/sdk.zip" }
+  ],
+
+  "qa": [
+    { "q": "A question customers ask", "a": "Your answer." }
+  ]
+}
