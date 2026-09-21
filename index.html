@@ -243,6 +243,12 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 .pricebox .tax{font-size:11.5px;color:var(--muted);margin-top:2px}
 .buyrow{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
 .buyrow .qty{margin-top:0}.buyrow .btn{flex:1}
+.deliver{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:13px 14px;background:var(--surface-2)}
+.locpick{display:flex;gap:6px;flex-wrap:wrap}
+.locpick button{font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);border-radius:8px;padding:7px 12px;cursor:pointer}
+.locpick button[aria-pressed="true"]{background:var(--brand);color:#04222a;border-color:var(--brand)}
+.deliver-est{margin-top:10px;font-size:14px;color:var(--ink)}
+.deliver-est b{font-family:var(--display)}
 .hi-list{list-style:none;padding:0;margin:14px 0;display:grid;gap:8px}
 .hi-list li{display:flex;gap:9px;font-size:13.5px;color:var(--ink-2)}
 .hi-list svg{width:17px;height:17px;color:var(--brand-ink);flex:none;margin-top:1px}
@@ -456,13 +462,12 @@ const STORE="ROBONEXA";
 const ORDER_EMAIL="akshaykangude35@gmail.com";
 const ADMIN_PASS="admin123";          // <-- change this: your Master/Admin password
 // ---- Your GitHub repo (so admin can browse files committed there) ----
-const GH_USER   = "akshaykangude";
-const GH_REPO   = "RoboNexa_Web";
-const GH_BRANCH = "main";
-
-// const GH_USER="akshaykangude";           // <-- your GitHub username
-//const GH_REPO="akshaykangude.github.io"; // <-- the repo name you create
-// const GH_BRANCH="main";                  // <-- usually "main"
+const GH_USER="akshaykangude";           // <-- your GitHub username
+const GH_REPO="RoboNexa_Web";            // <-- your repo name
+const GH_BRANCH="main";                  // <-- usually "main"
+// ---- Stock & delivery lead times (used when an item is out of stock / not in the sheet) ----
+const LEADTIME={ procureDays:20, deliver:{ city:2, state:3, other:5 } };
+// Stock is read from products/stock.csv  (columns: id,stock)  — edit it in Excel.
 const FREE_SHIP_OVER=25000, SHIP_FLAT=499;
 const CUR=n=>"₹"+Number(n||0).toLocaleString("en-IN");
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -598,12 +603,28 @@ async function loadRepoProducts(){
 }
 let users=DB.get("users",{});           // email -> {name,email,pass}
 let orders=DB.get("orders",[]);         // {id,email,items:[{id,name,price,qty}],total,status,date}
-let reviews=DB.get("reviews",[]);       // {id,pid,email,name,rating,title,text,date}
+let reviews=DB.get("reviews",[]);       // {code,pid,email,name,rating,title,text,date,device}
+let questions=DB.get("questions",[]);   // {code,pid,email,name,text,date,device,answered}
+let stockSheet={};                      // {id: qty}  loaded from products/stock.csv
 let cart=DB.get("cart",{});
 let session=DB.get("session",null);     // email
 let isAdmin=DB.get("admin",false);
 const saveP=()=>DB.set("products",products), saveU=()=>DB.set("users",users), saveO=()=>DB.set("orders",orders),
-      saveR=()=>DB.set("reviews",reviews), saveC=()=>DB.set("cart",cart);
+      saveR=()=>DB.set("reviews",reviews), saveC=()=>DB.set("cart",cart), saveQ=()=>DB.set("questions",questions);
+/* device + time snapshot captured with each submission (browser-side; IP/precise location need the server) */
+function deviceInfo(){try{return{ua:navigator.userAgent,platform:navigator.platform||"",lang:navigator.language||"",screen:(screen.width+"×"+screen.height),tz:(Intl.DateTimeFormat().resolvedOptions().timeZone||""),ref:document.referrer||"direct",when:new Date().toISOString()};}catch(_){return{when:new Date().toISOString()};}}
+/* effective stock: sheet value wins if present, else the product's own stock */
+function stockOf(p){const q=(p&&p.id in stockSheet)?stockSheet[p.id]:(p?p.stock:0);return {qty:Number(q)||0,inStock:(Number(q)||0)>0};}
+function deliveryDays(inStock,loc){const d=LEADTIME.deliver[loc]??LEADTIME.deliver.other;return (inStock?0:LEADTIME.procureDays)+d;}
+function addDays(n){const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"});}
+async function loadStockSheet(){
+ try{const r=await fetch("products/stock.csv",{cache:"no-store"});if(!r.ok)return;const t=await r.text();
+  const rows=t.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const map={};for(let i=0;i<rows.length;i++){const c=rows[i].split(",");const id=(c[0]||"").trim();if(!id||/^id$/i.test(id))continue;map[id]=parseInt((c[1]||"0").trim(),10)||0;}
+  stockSheet=map; if(document.body.classList.contains("detail")){/* re-render current detail if open */}
+  renderGrid();
+ }catch(_){/* no sheet / preview */}
+}
 const byId=id=>products.find(p=>p.id===id);
 const currentUser=()=>session?users[session]:null;
 
@@ -637,9 +658,9 @@ function cardHTML(p){const d=discount(p),r=ratingOf(p.id);
    <div class="rating"><span class="stars">${starsHTML(r.avg)}</span>${r.n?r.avg.toFixed(1)+" · "+r.n+" review"+(r.n>1?"s":""):"No reviews yet"}</div>
    <div class="keyspec">${(p.key||[]).map(k=>`<span>${esc(k)}</span>`).join("")}</div>
    <div class="priceline"><span class="price">${CUR(p.price)}</span>${p.mrp?`<span class="mrp">${CUR(p.mrp)}</span>`:""}</div>
-   <div class="stock${p.stock>0?"":" out"}">${p.stock>0?"In stock":"Out of stock"}</div>
+   <div class="stock${stockOf(p).inStock?"":" out"}">${stockOf(p).inStock?"In stock":"Made to order · ~"+LEADTIME.procureDays+" days"}</div>
    <div class="pact">
-     <button class="addbtn" data-add="${p.id}" ${p.stock>0?"":"disabled"}><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+     <button class="addbtn" data-add="${p.id}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button>
      <button class="viewbtn" data-view="${p.id}">Details</button>
    </div>
   </div></article>`;}
@@ -687,11 +708,16 @@ function renderDetail(p){
     <p style="color:var(--ink-2)">${esc(p.desc||"")}</p>
     <div class="pricebox">
      <div class="pl"><span class="price">${CUR(p.price)}</span>${p.mrp?`<span class="mrp">${CUR(p.mrp)}</span>`:""}${d?`<span class="save">Save ${d}%</span>`:""}</div>
-     <div class="tax">Incl. of taxes where shown · ${p.stock>0?`<span style="color:var(--save);font-weight:600">In stock (${p.stock})</span>`:'<span style="color:var(--muted)">Out of stock</span>'}</div>
+     <div class="tax">Incl. of taxes where shown · ${stockOf(p).inStock?`<span style="color:var(--save);font-weight:600">In stock (${stockOf(p).qty})</span>`:`<span style="color:var(--warn);font-weight:600">Made to order — ships in ~${LEADTIME.procureDays} days</span>`}</div>
      <div class="buyrow">
        <div class="qty"><button data-dq="1">−</button><span id="dQty">1</span><button data-dq="2">+</button></div>
-       <button class="btn btn-buy" id="dAdd" ${p.stock>0?"":"disabled"}>Add to cart</button>
-       <button class="btn btn-grad" id="dBuy" ${p.stock>0?"":"disabled"}>Buy now</button>
+       <button class="btn btn-buy" id="dAdd">Add to cart</button>
+       <button class="btn btn-grad" id="dBuy">Buy now</button>
+     </div>
+     <div class="deliver">
+       <div style="font-size:12px;color:var(--muted);margin-bottom:7px">📦 Estimated delivery — where are you?</div>
+       <div class="locpick" id="locPick"><button type="button" data-loc="city" aria-pressed="true">My city</button><button type="button" data-loc="state">My state</button><button type="button" data-loc="other">Other state</button></div>
+       <div class="deliver-est" id="deliverEst"></div>
      </div>
     </div>
     <ul class="hi-list">${(p.highlights||[]).map(h=>`<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>${esc(h)}</li>`).join("")}</ul>
@@ -707,18 +733,33 @@ function renderDetail(p){
  $("#dBuy").addEventListener("click",()=>{addToCart(p.id,q);openCart();});
  $$("#viewDetail .th").forEach(t=>t.addEventListener("click",()=>{const i=+t.dataset.img;$("#galMain").innerHTML=imgs[i]?`<img src="${esc(imgs[i])}">`:media(p);$$("#viewDetail .th").forEach(x=>x.classList.toggle("sel",x===t));}));
  $$("#viewDetail .dtab").forEach(t=>t.addEventListener("click",()=>{detailTab=t.dataset.dt;$$("#viewDetail .dtab").forEach(x=>x.setAttribute("aria-pressed",x===t));renderDetailPanels(p);}));
+ const est=$("#deliverEst"),sk=stockOf(p);
+ const showEst=loc=>{const days=deliveryDays(sk.inStock,loc);est.innerHTML=`<b>${days} days</b> — by <b>${addDays(days)}</b>${sk.inStock?"":` <span style="color:var(--muted)">(incl. ~${LEADTIME.procureDays}-day sourcing)</span>`}`;};
+ showEst("city");
+ $("#locPick").addEventListener("click",e=>{const b=e.target.closest("[data-loc]");if(!b)return;$$("#locPick button").forEach(x=>x.setAttribute("aria-pressed",x===b));showEst(b.dataset.loc);});
 }
 function renderDetailPanels(p){
  const r=ratingOf(p.id),host=$("#dpanels");let h="";
  if(detailTab==="spec"){h=`<div class="dpanel show"><h3>Technical specification</h3><table class="spectable"><tbody>${Object.entries(p.specs||{}).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")||'<tr><td colspan="2" style="color:var(--muted)">No specifications added.</td></tr>'}</tbody></table></div>`;}
  else if(detailTab==="docs"){h=`<div class="dpanel show"><h3>Documentation & datasheets</h3><div class="doclist">${(p.docs||[]).length?(p.docs).map(dc=>`<div class="docrow"><span class="di"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span><div><b>${esc(dc.t)}</b><span>${esc(dc.s||"")}</span></div>${dc.u?`<a class="dl" href="${esc(dc.u)}" download target="_blank" rel="noopener">Download →</a>`:`<span class="dl" style="color:var(--muted)">On request</span>`}</div>`).join(""):'<p style="color:var(--muted)">No documents uploaded yet.</p>'}</div></div>`;}
  else if(detailTab==="soft"){h=`<div class="dpanel show"><h3>Software & drivers</h3><div class="doclist">${(p.software||[]).length?(p.software).map(sw=>`<div class="docrow"><span class="di" style="background:var(--brand-soft);color:var(--brand-ink)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-6 6 6 6M16 6l6 6-6 6"/></svg></span><div><b>${esc(sw.t)}</b><span>${esc(sw.s||"")}</span></div>${sw.u?`<a class="dl" href="${esc(sw.u)}" target="_blank" rel="noopener">Open →</a>`:`<span class="dl" style="color:var(--muted)">On request</span>`}</div>`).join(""):'<p style="color:var(--muted)">No software listed for this product.</p>'}</div></div>`;}
- else if(detailTab==="qa"){h=`<div class="dpanel show"><h3>Questions & answers</h3>${(p.qa||[]).length?(p.qa).map(x=>`<div class="qa"><div class="q">${esc(x.q)}</div><div class="a">${esc(x.a)}</div></div>`).join(""):'<p style="color:var(--muted)">No questions yet — email us and we will answer here.</p>'}</div>`;}
+ else if(detailTab==="qa"){h=`<div class="dpanel show"><h3>Questions &amp; answers</h3>${(p.qa||[]).length?(p.qa).map(x=>`<div class="qa"><div class="q">${esc(x.q)}</div><div class="a">${esc(x.a)}</div></div>`).join(""):'<p style="color:var(--muted)">No answered questions yet.</p>'}
+   <div class="rev-write" style="margin-top:18px"><h4 style="font-size:15px;font-weight:700;margin-bottom:10px">Ask a question about this product</h4>
+    <form id="askForm"><div class="frow"><div class="field"><label>Your name</label><input id="ask_name" required></div><div class="field"><label>Your email</label><input id="ask_email" type="email" required></div></div>
+     <div class="field"><label>Your question</label><textarea id="ask_text" placeholder="Type your question…" required></textarea></div>
+     <div class="err" id="ask_err"></div><button class="btn btn-brand btn-sm" type="submit">Send question</button></form></div></div>`;}
  else if(detailTab==="warr"){h=`<div class="dpanel show"><h3>Warranty</h3><div class="warrantybox"><b>${esc(p.warranty||"Standard 1 year manufacturer warranty.")}</b><p style="margin-top:8px">Warranty covers manufacturing defects. Keep your GST invoice as proof of purchase. For claims, contact ${esc(ORDER_EMAIL)} with your order ID.</p></div></div>`;}
  else if(detailTab==="origin"){const c=p.country||"India";h=`<div class="dpanel show"><h3>Country of origin</h3><div class="origin"><span class="flag">${flags[c]||"🏳️"}</span><div><b style="font-size:17px">${esc(c)}</b><div style="color:var(--muted);font-size:13px;margin-top:3px">As per Legal Metrology (Packaged Commodities) rules. Importer/manufacturer details on invoice.</div></div></div></div>`;}
  else if(detailTab==="rev"){h=renderReviews(p,r);}
  host.innerHTML=h;
  if(detailTab==="rev")wireReviewForm(p);
+ if(detailTab==="qa")wireAskForm(p);
+}
+function wireAskForm(p){const f=$("#askForm");if(!f)return;
+ f.addEventListener("submit",e=>{e.preventDefault();const name=$("#ask_name").value.trim(),email=$("#ask_email").value.trim(),text=$("#ask_text").value.trim();
+  if(!name||!email||!text){$("#ask_err").textContent="Please fill all three fields.";return;}
+  const qid=uid();questions.push({id:qid,code:"QN-"+qid.toUpperCase(),pid:p.id,name,email,text,date:Date.now(),device:deviceInfo(),answered:false});saveQ();
+  f.reset();$("#ask_err").innerHTML='<span style="color:var(--save)">✓ Sent — we will reply to your email.</span>';toast("Question sent");});
 }
 function renderReviews(p,r){
  const list=reviews.filter(x=>x.pid===p.id).sort((a,b)=>b.date-a.date);
@@ -744,7 +785,7 @@ function renderReviews(p,r){
 function wireReviewForm(p){
  const sp=$("#starpick");if(sp){let val=0;sp.addEventListener("click",e=>{const s=e.target.closest("[data-v]");if(!s)return;val=+s.dataset.v;[...sp.children].forEach(c=>c.setAttribute("data-on",+c.dataset.v<=val?"1":"0"));});
   $("#revForm").addEventListener("submit",e=>{e.preventDefault();const u=currentUser();if(!val){toast("Pick a star rating");return;}
-   reviews.push({id:uid(),pid:p.id,email:u.email,name:u.name,rating:val,title:$("#revTitle").value.trim(),text:$("#revText").value.trim(),date:Date.now()});saveR();toast("Review submitted — thank you!");renderDetail(byId(p.id));detailTab="rev";});
+   const rid=uid();reviews.push({id:rid,code:"RV-"+rid.toUpperCase(),pid:p.id,email:u.email,name:u.name,rating:val,title:$("#revTitle").value.trim(),text:$("#revText").value.trim(),date:Date.now(),device:deviceInfo()});saveR();toast("Review submitted — thank you!");detailTab="rev";renderDetail(byId(p.id));});
  }
 }
 
@@ -965,6 +1006,12 @@ function showProductJSON(id){
   <div class="preview show"><div class="ph"><span>product.json</span><button class="btn btn-ghost" id="cpJson" style="font-size:11px;padding:5px 10px">Copy</button></div><pre id="jsonText">${esc(j)}</pre></div>`,true);
  $("#cpJson").addEventListener("click",async e=>{try{await navigator.clipboard.writeText(document.getElementById("jsonText").textContent);e.currentTarget.textContent="Copied ✓";}catch(_){e.currentTarget.textContent="Select text & copy";}});
 }
+/* Export a data set as JSON to save into the repo's data/ folders */
+function exportJSON(title,path,data){
+ const j=JSON.stringify(data,null,2);
+ openModal("Export — "+title,`<p class="formnote" style="margin-bottom:10px;line-height:1.6">Save this as <b>${esc(path)}</b> in your repo and commit it — that's how the tracked ${esc(title.toLowerCase())} become version-controlled and never lost.</p><div class="preview show"><div class="ph"><span>${esc(path)}</span><button class="btn btn-ghost" id="cpEx" style="font-size:11px;padding:5px 10px">Copy</button></div><pre id="exText">${esc(j)}</pre></div>`,true);
+ $("#cpEx").addEventListener("click",async e=>{try{await navigator.clipboard.writeText(document.getElementById("exText").textContent);e.currentTarget.textContent="Copied ✓";}catch(_){e.currentTarget.textContent="Select & copy";}});
+}
 let adminTab="products";
 function renderAdmin(){
  const revenue=orders.reduce((s,o)=>s+o.total,0);
@@ -976,6 +1023,7 @@ function renderAdmin(){
    <button data-at="orders" aria-pressed="${adminTab==='orders'}">Orders (${orders.length})</button>
    <button data-at="customers" aria-pressed="${adminTab==='customers'}">Customers (${Object.keys(users).length})</button>
    <button data-at="reviews" aria-pressed="${adminTab==='reviews'}">Reviews (${reviews.length})</button>
+   <button data-at="questions" aria-pressed="${adminTab==='questions'}">Questions (${questions.length})</button>
   </div>
   <div id="adminPanels"></div>`;
  $("#admStore").addEventListener("click",goStore);$("#admExit").addEventListener("click",adminLogout);
@@ -1011,13 +1059,24 @@ function renderAdminPanel(revenue){
    (list.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Name</th><th>Login ID (email)</th><th>Password (demo)</th><th>Orders</th><th style="text-align:right">Action</th></tr></thead><tbody>
    ${list.map(u=>`<tr><td><b>${esc(u.name)}</b></td><td class="mono">${esc(u.email)}</td><td class="mono">${esc(u.pass)}</td><td>${orders.filter(o=>o.email===u.email).length}</td><td style="text-align:right"><button class="btn btn-ghost btn-sm" data-reset="${esc(u.email)}">Reset password</button></td></tr>`).join("")}
    </tbody></table></div>`:'<p style="color:var(--muted);padding:30px 0">No customers have signed up yet. When someone creates an account it appears here.</p>');
+  if(list.length){const bar=document.createElement("div");bar.style.cssText="display:flex;justify-content:flex-end;margin:-6px 0 12px";bar.innerHTML=`<button class="btn btn-ghost btn-sm" id="exCust">⭳ Export customers.json</button>`;host.appendChild(bar);bar.querySelector("#exCust").addEventListener("click",()=>exportJSON("Customers","data/users/users.json",Object.values(users).map(u=>({name:u.name,email:u.email,verified:!!u.verified}))));}
   host.querySelectorAll("[data-reset]").forEach(b=>b.addEventListener("click",()=>adminReset(b.dataset.reset)));
  }
  else if(adminTab==="reviews"){
-  host.innerHTML=reviews.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Product</th><th>Customer</th><th>Rating</th><th>Review</th><th style="text-align:right">Action</th></tr></thead><tbody>
-   ${reviews.slice().reverse().map(r=>`<tr><td>${esc(byId(r.pid)?.name||r.pid)}</td><td>${esc(r.name)}</td><td>${r.rating}★</td><td style="max-width:280px"><b>${esc(r.title)}</b><div style="font-size:12px;color:var(--muted)">${esc(r.text)}</div></td><td style="text-align:right"><button class="btn btn-danger btn-sm" data-delrev="${r.id}">Remove</button></td></tr>`).join("")}
-   </tbody></table></div>`:'<p style="color:var(--muted);padding:30px 0">No reviews yet.</p>';
+  host.innerHTML=`<div style="display:flex;justify-content:flex-end;margin-bottom:12px">${reviews.length?`<button class="btn btn-ghost btn-sm" id="exRev">⭳ Export reviews.json</button>`:""}</div>`+
+   (reviews.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Code</th><th>Product (SKU)</th><th>Customer</th><th>Rating</th><th>Review</th><th>When / device</th><th style="text-align:right"></th></tr></thead><tbody>
+   ${reviews.slice().reverse().map(r=>`<tr><td class="mono" style="font-size:11px">${esc(r.code||r.id)}</td><td>${esc(byId(r.pid)?.name||r.pid)}<div class="mono" style="font-size:11px;color:var(--muted)">${esc(r.pid)}</div></td><td>${esc(r.name)}<div style="font-size:11px;color:var(--muted)">${esc(r.email||"")}</div></td><td>${r.rating}★</td><td style="max-width:240px"><b>${esc(r.title)}</b><div style="font-size:12px;color:var(--muted)">${esc(r.text)}</div></td><td style="font-size:11px;color:var(--muted)">${new Date(r.date).toLocaleString("en-IN")}<div>${esc((r.device&&(r.device.platform||r.device.tz))||"")}</div></td><td style="text-align:right"><button class="btn btn-danger btn-sm" data-delrev="${r.id}">Remove</button></td></tr>`).join("")}
+   </tbody></table></div>`:'<p style="color:var(--muted);padding:30px 0">No reviews yet.</p>');
+  host.querySelector("#exRev")?.addEventListener("click",()=>exportJSON("Reviews","data/reviews/reviews.json",reviews));
   host.querySelectorAll("[data-delrev]").forEach(b=>b.addEventListener("click",()=>{reviews=reviews.filter(x=>x.id!==b.dataset.delrev);saveR();toast("Review removed");renderAdmin();}));
+ }
+ else if(adminTab==="questions"){
+  host.innerHTML=`<div style="display:flex;justify-content:flex-end;margin-bottom:12px">${questions.length?`<button class="btn btn-ghost btn-sm" id="exQ">⭳ Export questions.json</button>`:""}</div>`+
+   (questions.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Code</th><th>Product (SKU)</th><th>From</th><th>Question</th><th>When / device</th><th style="text-align:right"></th></tr></thead><tbody>
+   ${questions.slice().reverse().map(q=>`<tr><td class="mono" style="font-size:11px">${esc(q.code||q.id)}</td><td>${esc(byId(q.pid)?.name||q.pid)}<div class="mono" style="font-size:11px;color:var(--muted)">${esc(q.pid)}</div></td><td>${esc(q.name)}<div style="font-size:11px;color:var(--muted)">${esc(q.email||"")}</div></td><td style="max-width:260px">${esc(q.text)}</td><td style="font-size:11px;color:var(--muted)">${new Date(q.date).toLocaleString("en-IN")}<div>${esc((q.device&&(q.device.platform||q.device.tz))||"")}</div></td><td style="text-align:right"><button class="btn btn-danger btn-sm" data-delq="${q.id}">Remove</button></td></tr>`).join("")}
+   </tbody></table></div><p class="formnote" style="margin-top:12px">Reply to customers by email using the address shown. To publish an answer on the product page, add it to that product's Q&amp;A in the product form.</p>`:'<p style="color:var(--muted);padding:30px 0">No customer questions yet.</p>');
+  host.querySelector("#exQ")?.addEventListener("click",()=>exportJSON("Questions","data/questions/questions.json",questions));
+  host.querySelectorAll("[data-delq]").forEach(b=>b.addEventListener("click",()=>{questions=questions.filter(x=>x.id!==b.dataset.delq);saveQ();toast("Question removed");renderAdmin();}));
  }
 }
 function rowsField(label,items,ph1,ph2,name){
@@ -1159,4 +1218,5 @@ $("#themeBtn").addEventListener("click",()=>{const cur=root.getAttribute("data-t
 $("#yr").textContent=new Date().getFullYear();
 renderCats();renderGrid();updateCart();refreshAccount();
 loadRepoProducts();
+loadStockSheet();
 </script>

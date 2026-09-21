@@ -21,11 +21,20 @@ products/
 
 ## Put it online (GitHub Pages)
 
-1. Create a GitHub repo named **`akshaykangude.github.io`** (Public).
-2. Upload **everything in this folder** (keep the folder structure). Easiest:
-   on the repo page → **Add file ▸ Upload files** → drag the whole contents in.
-3. **Settings ▸ Pages** → Source **Deploy from a branch** → **main / root** → Save.
-4. ~1 minute later your site is live at **https://akshaykangude.github.io**.
+The repo is **`RoboNexa_Web`**. See **DEPLOY.md** for the full terminal (git) steps.
+Short version:
+
+1. Push this folder to the repo `akshaykangude/RoboNexa_Web` (see DEPLOY.md).
+2. **Settings ▸ Pages** → Source **Deploy from a branch** → **main / root** → Save.
+3. ~1 minute later your site is live at:
+   ### https://akshaykangude.github.io/RoboNexa_Web/
+
+In `index.html`, set the config so the admin "Choose from GitHub" picker works:
+```js
+const GH_USER   = "akshaykangude";
+const GH_REPO   = "RoboNexa_Web";
+const GH_BRANCH = "main";
+```
 
 Later, connect your domain `robonext.in` under **Settings ▸ Pages ▸ Custom domain**.
 
@@ -64,3 +73,22 @@ in `index.html`.
   no server to send email or store data for real. Those become real in the
   **custom app** (Next.js + database) — that project is separate and already
   started.
+
+## Stock & delivery estimates
+
+- Stock is tracked in **`products/stock.csv`** (`id,stock`) — edit it in Excel.
+- If an item's stock is **0** or it's **not in the sheet**, the product page shows
+  it as **Made to order** and estimates delivery using the lead-time rule in
+  `index.html`:
+  ```js
+  const LEADTIME = { procureDays: 20, deliver: { city: 2, state: 3, other: 5 } };
+  ```
+  i.e. ~20 days to source + 2 days in-city / 3 in-state / 5 out-of-state.
+- Customers pick their location on the product page and see an estimated date.
+
+## Tracked data folders
+
+`data/reviews/`, `data/questions/`, `data/users/` — see **data/README.md**. Each
+review/question gets a permanent code, timestamp, the product SKU (so it stays
+locked to the right product) and a device snapshot. Export them from the admin
+tabs and commit the JSON.

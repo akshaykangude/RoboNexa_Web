@@ -1,0 +1,22 @@
+[
+  {
+    "code": "RV-EXAMPLE1",
+    "pid": "ACT-J60",
+    "name": "Example Customer",
+    "email": "customer@example.com",
+    "rating": 5,
+    "title": "Precise and reliable",
+    "body": "Torque control over CAN FD was smooth to integrate. Example entry — replace with real exports.",
+    "date": "2026-09-21T09:30:00.000Z",
+    "images": [],
+    "ip": "",
+    "device": {
+      "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "platform": "Win32",
+      "lang": "en-IN",
+      "screen": "1920×1080",
+      "tz": "Asia/Kolkata",
+      "ref": "direct"
+    }
+  }
+]

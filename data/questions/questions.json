@@ -1,0 +1,21 @@
+[
+  {
+    "code": "QN-EXAMPLE1",
+    "pid": "LDR-32",
+    "name": "Example Buyer",
+    "email": "buyer@example.com",
+    "text": "Does the ROS 2 driver support the Humble distro? Example entry — replace with real exports.",
+    "date": "2026-09-21T09:45:00.000Z",
+    "answered": false,
+    "images": [],
+    "ip": "",
+    "device": {
+      "ua": "Mozilla/5.0 (Linux; Android 14)",
+      "platform": "Linux armv8l",
+      "lang": "en-IN",
+      "screen": "412×915",
+      "tz": "Asia/Kolkata",
+      "ref": "https://www.google.com/"
+    }
+  }
+]
