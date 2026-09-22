@@ -496,6 +496,10 @@ const flags={India:"🇮🇳",China:"🇨🇳",Germany:"🇩🇪",Japan:"🇯�
 const ORDER_STAGES=[["placed","Order placed"],["packed","Packed"],["shipped","Shipped"],["in_transit","In transit"],["out_for_delivery","Out for delivery"],["delivered","Delivered"]];
 const stageLabel=s=>{const f=ORDER_STAGES.find(x=>x[0]===s);return f?f[1]:(s==="cancelled"?"Cancelled":s);};
 const stageIndex=s=>ORDER_STAGES.findIndex(x=>x[0]===s);
+/* pre-order procurement stages — owner advances these SEPARATELY from the ship-now segment */
+const PRE_STAGES=[["awaiting","Awaiting stock"],["vendor_ordered","Vendor ordered"],["received","Received"],["ready","Ready to ship"],["shipped","Shipped"],["out_for_delivery","Out for delivery"],["delivered","Delivered"]];
+const preLabel=s=>{const f=PRE_STAGES.find(x=>x[0]===s);return f?f[1]:(s==="cancelled"?"Cancelled":s);};
+const preIndex=s=>PRE_STAGES.findIndex(x=>x[0]===s);
 
 /* ================= ICONS ================= */
 const SV=p=>`<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -1015,12 +1019,15 @@ function openPaymentStep(addr){
  const tier=locTier(addr.city,addr.state);
  const mtoLeads=ids.filter(id=>splitQty(byId(id),cart[id]).pre>0).map(id=>procureDaysOf(byId(id)));
  const anyMTO=mtoLeads.length>0;
- const days=(anyMTO?Math.max(...mtoLeads):0)+(LEADTIME.deliver[tier]??LEADTIME.deliver.other);
+ const nowDays=(LEADTIME.deliver[tier]??LEADTIME.deliver.other);
+ const preDays=(anyMTO?Math.max(...mtoLeads):0)+nowDays;
+ const days=anyMTO?preDays:nowDays;
+ const anyNow=items.some(i=>splitQty(byId(i.id),i.qty).now>0);
  const oid="ORD-"+Date.now().toString().slice(-6);
  const tierLabel=tier==="city"?"within "+STORE_CITY:tier==="state"?"within "+STORE_STATE:"out of state";
- const ctx={addr,items,tot,tier,days,oid};
+ const ctx={addr,items,tot,tier,days,nowDays,preDays,oid};
  const head=`<div style="font-size:12.5px;color:var(--muted);text-align:center">Order ${oid} · deliver to ${esc(addr.city)}, ${esc(addr.state)} (${tierLabel})</div>
-   <div style="margin:8px 0 16px;font-size:14px;text-align:center">📦 Delivery in <b>${days} days</b> — by <b>${addDays(days)}</b>${anyMTO?` <span style="color:var(--muted)">(incl. ~${LEADTIME.procureDays}-day sourcing)</span>`:""}</div>`;
+   <div style="margin:8px 0 16px;font-size:14px;text-align:center">📦 ${anyMTO?`${anyNow?`In-stock items by <b>${addDays(nowDays)}</b> · `:""}pre-order items by <b>${addDays(preDays)}</b> <span style="color:var(--muted)">(incl. sourcing)</span>`:`Delivery in <b>${days} days</b> — by <b>${addDays(days)}</b>`}</div>`;
  openModal("Payment · "+CUR(tot),`${head}
    <div style="font-size:13px;color:var(--ink-2);text-align:center;margin-bottom:12px">Choose how you'd like to pay</div>
    <button class="btn btn-brand big" id="mUpi"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h6v6h-6z"/></svg> Pay by UPI (QR)</button>
@@ -1030,10 +1037,10 @@ function openPaymentStep(addr){
  $("#mCard").addEventListener("click",()=>showCardPay(ctx));
 }
 function placeOrder(ctx,method,ref){
- const {addr,items,tot,tier,days,oid}=ctx;
+ const {addr,items,tot,tier,days,nowDays,preDays,oid}=ctx;
  const items2=items.map(i=>{const s=splitQty(byId(i.id),i.qty);return {...i,qtyNow:s.now,qtyPre:s.pre,preorder:s.pre>0};});
  const isPre=items2.some(i=>i.qtyPre>0);
- orders.push({id:oid,email:session,items:items2,total:tot,status:"placed",date:Date.now(),address:addr,tier,etaDays:days,method,paymentRef:ref||"",preorder:isPre});saveO();
+ orders.push({id:oid,email:session,items:items2,total:tot,status:"placed",statusNow:"placed",statusPre:isPre?"awaiting":null,date:Date.now(),address:addr,tier,etaDays:days,etaNowDays:(nowDays??days),etaPreDays:(preDays??days),method,paymentRef:ref||"",preorder:isPre,stockDeducted:false});saveO();
  mailSend(ORDER_EMAIL,(isPre?"PRE-ORDER ":"New order ")+oid+" — "+CUR(tot),`${items2.map(i=>i.name+" ×"+i.qty+(i.qtyPre>0?" ["+i.qtyNow+" now + "+i.qtyPre+" PRE-ORDER]":"")).join("\n")}\nTotal ${CUR(tot)}\nPayment: ${method}${ref?" ("+ref+")":""}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days${isPre?"\n\n** Contains pre-order items — source the pre-order quantities & confirm dispatch. **":""}`,"");
  cart={};saveC();updateCart();closeModal();toast(isPre?"Pre-order placed! ("+oid+")":"Order placed! ("+oid+")");
 }
@@ -1266,11 +1273,62 @@ $("#footOrders").addEventListener("click",e=>{e.preventDefault();session?openOrd
   if(/^#(master|admin)$/i.test(location.hash))setTimeout(openAdminLogin,200);
 })();
 
+/* ================= SPLIT-ORDER HELPERS (ship-now + pre-order segments) ================= */
+function orderHasPre(o){return (o.items||[]).some(i=>(i.qtyPre||0)>0)||!!o.preorder;}
+function orderHasNow(o){return (o.items||[]).some(i=>(i.qtyNow!=null?i.qtyNow:i.qty)>0);}
+/* per-segment ETA in days (older orders fall back to their stored etaDays) */
+function etaNowDaysOf(o){if(o.etaNowDays!=null)return o.etaNowDays;return LEADTIME.deliver[o.tier]??LEADTIME.deliver.other;}
+function etaPreDaysOf(o){if(o.etaPreDays!=null)return o.etaPreDays;return o.etaDays||0;}
+/* make sure every order carries the two segment statuses (migrates orders placed before this feature) */
+function normOrder(o){
+ if(o.statusNow==null)o.statusNow=(o.status&&o.status!=="cancelled")?o.status:"placed";
+ if(orderHasPre(o)&&o.statusPre==null)o.statusPre="awaiting";
+ return o;
+}
+function normAllOrders(){orders.forEach(normOrder);}
+/* deduct ship-now quantities from live stock once the order is packed (saved on this device, never touches stock.csv) */
+function deductStockForOrder(o){
+ if(o.stockDeducted)return;
+ (o.items||[]).forEach(i=>{const qty=i.qtyNow||0;if(qty<=0)return;
+  const cur=(i.id in stockSheet)?stockSheet[i.id]:(byId(i.id)?byId(i.id).stock:0);
+  const next=Math.max(0,(Number(cur)||0)-qty);
+  stockSheet[i.id]=next;invOverride[i.id]=invOverride[i.id]||{};invOverride[i.id].stock=next;});
+ o.stockDeducted=true;saveInvOv();renderGrid();
+}
+/* email the customer when a segment's status changes (uses the same mailer as OTPs) */
+function notifyCustomer(o,segment,label){
+ if(!o.email)return;const u=users[o.email];
+ const seg=segment==="pre"?"pre-order items":"in-stock items";
+ mailSend(o.email,"ROBONEXA order "+o.id+" — "+label,`Hello ${u?u.name:""},\n\nAn update on your order ${o.id}:\nYour ${seg} are now: ${label}.\n\nTrack it any time under "My orders" on our store.\n\nThank you,\nROBONEXA`,"");
+}
+/* advance one segment: updates the model, keeps a legacy status, deducts stock, emails, persists */
+function advanceOrder(o,segment,value){
+ normOrder(o);
+ if(value==="cancelled"){o.status="cancelled";saveO();notifyCustomer(o,segment,"Cancelled");return;}
+ if(segment==="pre"){o.statusPre=value;}
+ else{o.statusNow=value;if(stageIndex(value)>=1)deductStockForOrder(o);}
+ o.status=o.statusNow||"placed";              // top-level badge follows the ship-now segment
+ saveO();
+ notifyCustomer(o,segment,segment==="pre"?preLabel(value):stageLabel(value));
+}
+
 /* ================= MY ORDERS ================= */
+/* one labelled progress rail for a segment */
+function segTracker(title,stages,status,accent){
+ const cur=stages.findIndex(x=>x[0]===status);
+ return `<div style="margin-top:10px"><div style="font-size:10.5px;font-weight:700;color:${accent};text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">${title}</div>
+  <div class="track">${stages.map(([v,l],i)=>`<div class="tstep ${i<=cur?"done":""} ${i===cur?"now":""}"><div class="tdot">${i<cur?"✓":i+1}</div><div class="tlab">${l}</div></div>`).join("")}</div></div>`;
+}
 function orderTracker(o){
  if(o.status==="cancelled")return `<div style="color:var(--buy-ink);font-weight:600;font-size:13px;margin-top:10px">✕ Order cancelled</div>`;
- const cur=stageIndex(o.status);
- return `<div class="track">${ORDER_STAGES.map(([v,l],i)=>`<div class="tstep ${i<=cur?"done":""} ${i===cur?"now":""}"><div class="tdot">${i<cur?"✓":i+1}</div><div class="tlab">${l}</div></div>`).join("")}</div>`;
+ normOrder(o);
+ if(orderHasPre(o)){
+  let h="";
+  if(orderHasNow(o))h+=segTracker("In-stock items — shipping now",ORDER_STAGES,o.statusNow,"var(--brand-ink)");
+  h+=segTracker("Pre-order items — being sourced",PRE_STAGES,o.statusPre,"var(--warn)");
+  return h;
+ }
+ return segTracker("Order status",ORDER_STAGES,o.statusNow,"var(--brand-ink)");
 }
 function openOrders(){
  const mine=orders.filter(o=>o.email===session).sort((a,b)=>b.date-a.date);
@@ -1278,7 +1336,7 @@ function openOrders(){
    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b class="mono">${o.id}${o.preorder?'<span class="pretag" style="margin-left:6px">PRE-ORDER</span>':''}</b><span class="badge2 ${o.status==="delivered"?"delivered":o.status==="cancelled"?"preorder":"placed"}">${stageLabel(o.status)}</span></div>
    <div style="font-size:13px;color:var(--ink-2)">${o.items.map(i=>`${esc(i.name)} × ${i.qty}`+(i.qtyPre>0?` <span style="color:var(--warn)">(${i.qtyNow||0} now + ${i.qtyPre} pre-order ~${procureDaysOf(byId(i.id))||o.etaDays}d)</span>`:"")).join("<br>")}</div>
    ${orderTracker(o)}
-   <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:13px"><span style="color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}${o.etaDays?" · est. "+o.etaDays+" days":""}</span><b>${CUR(o.total)}</b></div>
+   <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:13px;gap:10px;flex-wrap:wrap"><span style="color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}${orderHasPre(o)?(orderHasNow(o)?` · in-stock by <b style="color:var(--brand-ink)">${addDays(etaNowDaysOf(o))}</b>`:"")+` · pre-order by <b style="color:var(--warn)">${addDays(etaPreDaysOf(o))}</b>`:(o.etaDays?" · est. by <b>"+addDays(etaNowDaysOf(o))+"</b>":"")}</span><b>${CUR(o.total)}</b></div>
    ${o.status==="delivered"?`<p class="formnote" style="margin-top:8px;color:var(--save)">✓ Delivered — you can now review these products on their pages.</p>`:""}</div>`).join(""):'<p style="color:var(--muted);text-align:center;padding:30px 0">No orders yet.<br>When you place an order it appears here.</p>');
 }
 
@@ -1316,6 +1374,7 @@ function exportJSON(title,path,data){
 }
 let adminTab="products";
 function renderAdmin(){
+ normAllOrders();
  const revenue=orders.reduce((s,o)=>s+o.total,0);
  $("#viewAdmin").innerHTML=`
   <div class="admin-hd"><h1>Master dashboard</h1><span class="pill">ADMIN</span><div class="sp"><button class="btn btn-ghost btn-sm" id="admStore">View store</button><button class="btn btn-danger btn-sm" id="admExit">Exit admin</button></div></div>
@@ -1324,6 +1383,7 @@ function renderAdmin(){
    <button data-at="add" aria-pressed="${adminTab==='add'}">+ Add product</button>
    <button data-at="inventory" aria-pressed="${adminTab==='inventory'}">📦 Inventory</button>
    <button data-at="orders" aria-pressed="${adminTab==='orders'}">Orders (${orders.length})</button>
+   <button data-at="preorders" aria-pressed="${adminTab==='preorders'}">🕒 Pre-orders (${orders.filter(o=>orderHasPre(o)&&o.status!=="cancelled"&&preIndex(o.statusPre)<preIndex("ready")).length})</button>
    <button data-at="customers" aria-pressed="${adminTab==='customers'}">Customers (${Object.keys(users).length})</button>
    <button data-at="reviews" aria-pressed="${adminTab==='reviews'}">Reviews (${reviews.length})</button>
    <button data-at="questions" aria-pressed="${adminTab==='questions'}">Questions (${questions.length})</button>
@@ -1372,10 +1432,27 @@ function renderAdminPanel(revenue){
   host.querySelectorAll(".invin").forEach(inp=>inp.addEventListener("change",()=>{const sku=inp.dataset.sku,f=inp.dataset.f;invOverride[sku]=invOverride[sku]||{};invOverride[sku][f]=parseInt(inp.value,10)||0;saveInvOv();applyInventoryToStock();renderAdmin();}));
  }
  else if(adminTab==="orders"){
+  normAllOrders();
+  const nowSel=(o)=>`<select class="ordsel" data-order="${o.id}" data-seg="now">${ORDER_STAGES.map(([v,l])=>`<option value="${v}" ${o.statusNow===v?"selected":""}>${l}</option>`).join("")}<option value="cancelled" ${o.status==="cancelled"?"selected":""}>Cancel order</option></select>`;
+  const preSel=(o)=>`<select class="ordsel" data-order="${o.id}" data-seg="pre">${PRE_STAGES.map(([v,l])=>`<option value="${v}" ${o.statusPre===v?"selected":""}>${l}</option>`).join("")}</select>`;
   host.innerHTML=orders.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Update status</th></tr></thead><tbody>
-   ${orders.slice().reverse().map(o=>`<tr><td class="mono">${o.id}${o.preorder?'<span class="pretag" style="margin-left:0">PRE-ORDER</span>':''}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}${o.etaDays?" · ETA "+o.etaDays+"d":""}</div></td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td style="font-size:12px">${o.items.map(i=>esc(i.name)+" ×"+i.qty+(i.qtyPre>0?' <span style="color:var(--warn)">('+(i.qtyNow||0)+' now + '+i.qtyPre+' pre-order)</span>':"")).join("<br>")}</td><td class="mono">${CUR(o.total)}</td><td><select class="ordsel" data-order="${o.id}">${ORDER_STAGES.map(([v,l])=>`<option value="${v}" ${o.status===v?"selected":""}>${l}</option>`).join("")}<option value="cancelled" ${o.status==="cancelled"?"selected":""}>Cancelled</option></select></td></tr>`).join("")}
-   </tbody></table></div><p class="formnote" style="margin-top:12px">Change the dropdown to advance an order — the customer sees the live status in <b>My orders</b>. Marking <b>Delivered</b> also lets them review.</p>`:'<p style="color:var(--muted);padding:30px 0">No orders yet.</p>';
-  host.querySelectorAll(".ordsel").forEach(sel=>sel.addEventListener("change",()=>{const o=orders.find(x=>x.id===sel.dataset.order);if(o){o.status=sel.value;saveO();toast("Order "+o.id+" → "+stageLabel(sel.value));}}));
+   ${orders.slice().reverse().map(o=>`<tr><td class="mono">${o.id}${o.preorder?'<span class="pretag" style="margin-left:0">SPLIT</span>':''}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}</div>${o.stockDeducted?'<div style="font-size:10px;color:var(--save)">✓ stock deducted</div>':''}</td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td style="font-size:12px">${o.items.map(i=>esc(i.name)+" ×"+i.qty+(i.qtyPre>0?' <span style="color:var(--warn)">('+(i.qtyNow||0)+' now + '+i.qtyPre+' pre-order)</span>':"")).join("<br>")}${orderHasPre(o)?`<div style="font-size:10.5px;color:var(--muted);margin-top:4px">🚚 now by ${addDays(etaNowDaysOf(o))} · 🕒 pre-order by ${addDays(etaPreDaysOf(o))}</div>`:""}</td><td class="mono">${CUR(o.total)}</td><td style="min-width:180px">${o.status==="cancelled"?'<span class="badge2 preorder">Cancelled</span>':orderHasPre(o)?`${orderHasNow(o)?`<div style="font-size:10px;font-weight:700;color:var(--brand-ink);margin-bottom:2px">SHIP NOW (${o.items.reduce((s,i)=>s+(i.qtyNow||0),0)})</div>${nowSel(o)}`:""}<div style="font-size:10px;font-weight:700;color:var(--warn);margin:8px 0 2px">PRE-ORDER (${o.items.reduce((s,i)=>s+(i.qtyPre||0),0)})</div>${preSel(o)}`:nowSel(o)}</td></tr>`).join("")}
+   </tbody></table></div><p class="formnote" style="margin-top:12px">Split orders show two trackers — advance the <b style="color:var(--brand-ink)">Ship now</b> part and the <b style="color:var(--warn)">Pre-order</b> part independently. Marking the ship-now part <b>Packed</b> deducts that quantity from live stock. The customer sees both in <b>My orders</b>, and each change emails them.</p>`:'<p style="color:var(--muted);padding:30px 0">No orders yet.</p>';
+  host.querySelectorAll(".ordsel").forEach(sel=>sel.addEventListener("change",()=>{const o=orders.find(x=>x.id===sel.dataset.order);if(o){advanceOrder(o,sel.dataset.seg,sel.value);toast("Order "+o.id+" → "+(sel.dataset.seg==="pre"?preLabel(sel.value):stageLabel(sel.value)));renderAdmin();}}));
+ }
+ else if(adminTab==="preorders"){
+  normAllOrders();
+  const pres=orders.filter(o=>orderHasPre(o)&&o.status!=="cancelled");
+  const vendorOf=sku=>{const inv=inventory.find(r=>r.sku===sku);return inv?inv.vendor:"";};
+  const lines=[];
+  pres.forEach(o=>o.items.filter(i=>(i.qtyPre||0)>0).forEach(i=>lines.push({o,i,vendor:vendorOf(i.id)})));
+  const pending=pres.filter(o=>preIndex(o.statusPre)<preIndex("ready"));
+  host.innerHTML=`
+   <div style="background:color-mix(in srgb,var(--warn) 14%,transparent);border:1px solid var(--warn);border-radius:12px;padding:12px 15px;font-size:13px;margin-bottom:16px;line-height:1.6"><b style="color:var(--warn)">🕒 ${lines.length} pre-order line${lines.length!==1?"s":""} across ${pres.length} order${pres.length!==1?"s":""}.</b> ${pending.length?pending.length+" still need sourcing.":"All sourced — ready to ship."} Advance each one as you procure it; the customer is emailed on every change.</div>
+   ${lines.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Order</th><th>Customer</th><th>Product (SKU)</th><th>Qty</th><th>Source from</th><th>Pre-order status</th><th>Ready by</th></tr></thead><tbody>
+   ${lines.map(({o,i,vendor})=>`<tr><td class="mono">${o.id}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}</div></td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td>${esc(i.name)}<div class="mono" style="font-size:11px;color:var(--muted)">${esc(i.id)}</div></td><td><b>${i.qtyPre}</b></td><td style="font-size:12px;font-weight:600;color:var(--buy-ink)">📞 ${esc(vendor||"vendor")}</td><td style="min-width:150px"><select class="presel" data-order="${o.id}">${PRE_STAGES.map(([v,l])=>`<option value="${v}" ${o.statusPre===v?"selected":""}>${l}</option>`).join("")}</select></td><td class="mono" style="font-size:12px">${addDays(etaPreDaysOf(o))}</td></tr>`).join("")}
+   </tbody></table></div><p class="formnote" style="margin-top:12px">Each row is a pre-order line to procure. Set it to <b>Vendor ordered</b> when you place the PO, <b>Received</b> when stock arrives, then <b>Ready to ship</b> → <b>Shipped</b>. ${inventory.length?"":"<b>Tip:</b> load your inventory Excel in the Inventory tab to show the right vendor per SKU."}</p>`:'<p style="color:var(--muted);padding:30px 0">No pre-orders right now. When a customer orders more than you have in stock, the extra quantity appears here to source.</p>'}`;
+  host.querySelectorAll(".presel").forEach(sel=>sel.addEventListener("change",()=>{const o=orders.find(x=>x.id===sel.dataset.order);if(o){advanceOrder(o,"pre",sel.value);toast("Pre-order "+o.id+" → "+preLabel(sel.value));renderAdmin();}}));
  }
  else if(adminTab==="customers"){
   const list=Object.values(users);
