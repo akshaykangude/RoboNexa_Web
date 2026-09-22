@@ -380,11 +380,41 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 @media(max-width:680px){.grid{grid-template-columns:repeat(2,1fr)}.searchbar{display:none}.promos{grid-template-columns:1fr}}
 @media(max-width:430px){.grid{grid-template-columns:1fr 1fr;gap:11px}.banner{padding:26px 22px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ===== invoice ===== */
+.inv-toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.invoice-print{background:#fff;color:#111;border:1px solid #ddd;border-radius:10px;padding:22px}
+.inv-head{display:flex;justify-content:space-between;gap:16px;border-bottom:2px solid #111;padding-bottom:12px}
+.inv-brand{font-size:20px;font-weight:800;color:#111}
+.inv-sub{font-size:11px;color:#444;margin-top:4px;line-height:1.5}
+.inv-title{font-size:16px;font-weight:800;letter-spacing:.08em;color:#111}
+.inv-meta{font-size:11px;margin-top:6px;border-collapse:collapse;margin-left:auto}
+.inv-meta td{padding:2px 4px;color:#333;text-align:left}.inv-meta td:first-child{color:#888}
+.inv-parties{display:flex;justify-content:space-between;gap:16px;margin:12px 0;font-size:12px;color:#222;line-height:1.5}
+.inv-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#888;margin-bottom:3px}
+.inv-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11.5px;color:#111}
+.inv-table th,.inv-table td{border:1px solid #ccc;padding:6px 7px;text-align:right}
+.inv-table th{background:#f2f2f2;color:#222}
+.inv-grand td{font-weight:800;font-size:13px;background:#f7f7f7}
+.inv-amt-words{margin-top:8px;font-size:11.5px;color:#111}
+.inv-eway{margin-top:12px;border:1.5px dashed #b26a00;border-radius:8px;padding:10px 12px;background:#fff8ef;color:#7a4a00;font-size:12px}
+.inv-eway-no{margin-top:6px;font-size:13px}.inv-eway-no span{font-family:var(--mono);letter-spacing:1px}
+.inv-bank{margin-top:10px;font-size:11px;color:#444}
+.inv-foot{display:flex;justify-content:space-between;gap:20px;margin-top:22px;font-size:11px;color:#444}
+@media print{
+ @page{margin:12mm}
+ body>*{display:none!important}
+ .modal-wrap{display:block!important;position:static!important;opacity:1!important;pointer-events:auto!important;padding:0!important}
+ .modal{max-width:none!important;max-height:none!important;border:none!important;box-shadow:none!important;border-radius:0!important}
+ .modal-h,.inv-toolbar{display:none!important}
+ .modal-b{padding:0!important}
+ .invoice-print{border:none!important;border-radius:0!important}
+}
 </style>
 
 <!-- ===== TOP STRIP ===== -->
 <div class="topbar"><div class="wrap">
-  <span>🚚 <b>Free shipping</b> over ₹25,000</span><span class="sep hideSm">·</span>
+  <span>🚚 <b>Free shipping</b> over <span id="topShip">₹25,000</span></span><span class="sep hideSm">·</span>
   <span class="hideSm">GST invoice on every order</span><span class="sep hideSm">·</span>
   <span class="hideSm">Datasheets with all products</span>
 </div></div>
@@ -393,7 +423,7 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 <header class="site"><div class="wrap head">
   <a class="logo" href="#" id="homeLogo" aria-label="Home">
     <span class="g"><svg viewBox="0 0 34 34" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="14" width="18" height="12" rx="3"/><path d="M13 14v-4a4 4 0 0 1 8 0v4"/><circle cx="14" cy="20" r="1.5" fill="currentColor" stroke="none"/><circle cx="20" cy="20" r="1.5" fill="currentColor" stroke="none"/></svg></span>
-    ROBO<b>NEXA</b>
+    <span id="brandTop">ROBO<b>NEXA</b></span>
   </a>
   <div class="searchbar">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
@@ -456,11 +486,11 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 
 <!-- ===== FOOTER ===== -->
 <footer class="site"><div class="wrap">
-  <div><a class="logo" href="#" id="footLogo">ROBO<b>NEXA</b></a><p>India's engineer-run robotics store — actuators, motors, drives, sensors and complete robots, with datasheets and real support.</p></div>
+  <div><a class="logo" href="#" id="footLogo"><span id="brandFoot">ROBO<b>NEXA</b></span></a><p id="footTagline">India's engineer-run robotics store — actuators, motors, drives, sensors and complete robots, with datasheets and real support.</p></div>
   <div><h5>Shop</h5><a href="#" data-fcat="robots">Robots &amp; AMRs</a><a href="#" data-fcat="actuators">Actuators &amp; motors</a><a href="#" data-fcat="drives">Drives &amp; controllers</a><a href="#" data-fcat="sensors">Sensors &amp; LiDAR</a></div>
-  <div><h5>Account</h5><a href="#" id="footLogin">Login / Sign up</a><a href="#" id="footOrders">My orders</a><a href="mailto:onlyshopes@gmail.com">Help &amp; support</a></div>
-  <div><h5>Contact</h5><a href="mailto:onlyshopes@gmail.com">onlyshopes@gmail.com</a><a href="tel:+910000000000">+91 XXXXX XXXXX</a><a>Pune, Maharashtra · India</a></div>
-</div><div class="wrap fbtm"><span id="footCopy">© <span id="yr"></span> ROBONEXA. All rights reserved.</span><span class="mono">Prices in ₹ INR</span></div></footer>
+  <div><h5>Account</h5><a href="#" id="footLogin">Login / Sign up</a><a href="#" id="footOrders">My orders</a><a href="#" id="footHelp">Help &amp; support</a></div>
+  <div><h5>Contact</h5><a id="footEmail" href="#">email</a><a id="footPhone" href="#">phone</a><a id="footAddr">address</a></div>
+</div><div class="wrap fbtm"><span id="footCopy">© <span id="yr"></span> <span id="brandCopy">ROBONEXA</span>. All rights reserved.</span><span class="mono">Prices in ₹ INR</span></div></footer>
 
 <!-- ===== CART DRAWER ===== -->
 <div class="scrim" id="scrim"></div>
@@ -488,7 +518,11 @@ if(typeof RAZORPAY_KEY_ID==="undefined"){var RAZORPAY_KEY_ID="";}
 if(typeof ADMIN_2FA_EMAIL==="undefined"){var ADMIN_2FA_EMAIL="akshaykangude35@gmail.com";}
 if(typeof INDIA_STATES==="undefined"){var INDIA_STATES=[];}
 if(typeof INDIA_CITIES==="undefined"){var INDIA_CITIES={};}
+if(typeof SELLER==="undefined"){var SELLER={name:STORE,line1:"",line2:"",city:STORE_CITY,state:STORE_STATE,stateCode:"27",pin:"",gstin:"",pan:"",phone:"",email:(typeof ORDER_EMAIL!=="undefined"?ORDER_EMAIL:""),bank:{}};}
+if(typeof INVOICE==="undefined"){var INVOICE={prefix:"RNX",gstRate:18,pricesIncludeGST:true,ewayThreshold:50000,terms:""};}
+if(typeof COMPANY==="undefined"){var COMPANY={tagline:"",phone:"",email:"",address:""};}
 const CUR=n=>"₹"+Number(n||0).toLocaleString("en-IN");
+const CUR2=n=>"₹"+Number(n||0).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2});
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const flags={India:"🇮🇳",China:"🇨🇳",Germany:"🇩🇪",Japan:"🇯🇵",USA:"🇺🇸","South Korea":"🇰🇷",Taiwan:"🇹🇼",Italy:"🇮🇹"};
@@ -637,8 +671,11 @@ let leadSheet={};                       // {id: procurement days}  optional 3rd 
 let cart=DB.get("cart",{});
 let session=DB.get("session",null);     // email
 let isAdmin=DB.get("admin",false);
+let invoices=DB.get("invoices",[]);     // {invNo,orderId,date,seller,buyer,lines,totals,ewayNo,interState,placeOfSupply}
+let invoiceSeq=DB.get("invoiceSeq",0);  // running counter for invoice numbers
 const saveP=()=>DB.set("products",products), saveU=()=>DB.set("users",users), saveO=()=>DB.set("orders",orders),
-      saveR=()=>DB.set("reviews",reviews), saveC=()=>DB.set("cart",cart), saveQ=()=>DB.set("questions",questions);
+      saveR=()=>DB.set("reviews",reviews), saveC=()=>DB.set("cart",cart), saveQ=()=>DB.set("questions",questions),
+      saveInv=()=>{DB.set("invoices",invoices);DB.set("invoiceSeq",invoiceSeq);};
 /* device + time snapshot captured with each submission (browser-side; IP/precise location need the server) */
 function deviceInfo(){try{return{ua:navigator.userAgent,platform:navigator.platform||"",lang:navigator.language||"",screen:(screen.width+"×"+screen.height),tz:(Intl.DateTimeFormat().resolvedOptions().timeZone||""),ref:document.referrer||"direct",when:new Date().toISOString()};}catch(_){return{when:new Date().toISOString()};}}
 /* effective stock: sheet value wins if present, else the product's own stock */
@@ -1040,7 +1077,9 @@ function placeOrder(ctx,method,ref){
  const {addr,items,tot,tier,days,nowDays,preDays,oid}=ctx;
  const items2=items.map(i=>{const s=splitQty(byId(i.id),i.qty);return {...i,qtyNow:s.now,qtyPre:s.pre,preorder:s.pre>0};});
  const isPre=items2.some(i=>i.qtyPre>0);
- orders.push({id:oid,email:session,items:items2,total:tot,status:"placed",statusNow:"placed",statusPre:isPre?"awaiting":null,date:Date.now(),address:addr,tier,etaDays:days,etaNowDays:(nowDays??days),etaPreDays:(preDays??days),method,paymentRef:ref||"",preorder:isPre,stockDeducted:false});saveO();
+ const now=Date.now();
+ orders.push({id:oid,email:session,items:items2,total:tot,status:"placed",statusNow:"placed",statusPre:isPre?"awaiting":null,stampsNow:{placed:now},stampsPre:isPre?{awaiting:now}:null,date:now,address:addr,tier,etaDays:days,etaNowDays:(nowDays??days),etaPreDays:(preDays??days),method,paymentRef:ref||"",preorder:isPre,stockDeducted:false});saveO();
+ createInvoiceForOrder(orders[orders.length-1]);   // invoice generated immediately for the owner to print
  mailSend(ORDER_EMAIL,(isPre?"PRE-ORDER ":"New order ")+oid+" — "+CUR(tot),`${items2.map(i=>i.name+" ×"+i.qty+(i.qtyPre>0?" ["+i.qtyNow+" now + "+i.qtyPre+" PRE-ORDER]":"")).join("\n")}\nTotal ${CUR(tot)}\nPayment: ${method}${ref?" ("+ref+")":""}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days${isPre?"\n\n** Contains pre-order items — source the pre-order quantities & confirm dispatch. **":""}`,"");
  cart={};saveC();updateCart();closeModal();toast(isPre?"Pre-order placed! ("+oid+")":"Order placed! ("+oid+")");
 }
@@ -1283,6 +1322,8 @@ function etaPreDaysOf(o){if(o.etaPreDays!=null)return o.etaPreDays;return o.etaD
 function normOrder(o){
  if(o.statusNow==null)o.statusNow=(o.status&&o.status!=="cancelled")?o.status:"placed";
  if(orderHasPre(o)&&o.statusPre==null)o.statusPre="awaiting";
+ if(!o.stampsNow)o.stampsNow={placed:o.date||Date.now()};
+ if(orderHasPre(o)&&!o.stampsPre)o.stampsPre={awaiting:o.date||Date.now()};
  return o;
 }
 function normAllOrders(){orders.forEach(normOrder);}
@@ -1301,35 +1342,150 @@ function notifyCustomer(o,segment,label){
  const seg=segment==="pre"?"pre-order items":"in-stock items";
  mailSend(o.email,"ROBONEXA order "+o.id+" — "+label,`Hello ${u?u.name:""},\n\nAn update on your order ${o.id}:\nYour ${seg} are now: ${label}.\n\nTrack it any time under "My orders" on our store.\n\nThank you,\nROBONEXA`,"");
 }
-/* advance one segment: updates the model, keeps a legacy status, deducts stock, emails, persists */
+/* record the time a stage was reached; rolling back erases the timestamps of any later stage */
+function stampSegment(map,stages,value){
+ map=map||{};const idx=stages.findIndex(x=>x[0]===value);
+ stages.forEach(([v],i)=>{if(i>idx&&map[v])delete map[v];});   // erase future stamps on rollback
+ if(!map[value])map[value]=Date.now();                          // keep earlier stamps, add the new one
+ return map;
+}
+/* advance one segment: updates status + timestamp, keeps a legacy status, deducts stock, emails, persists */
 function advanceOrder(o,segment,value){
  normOrder(o);
- if(value==="cancelled"){o.status="cancelled";saveO();notifyCustomer(o,segment,"Cancelled");return;}
- if(segment==="pre"){o.statusPre=value;}
- else{o.statusNow=value;if(stageIndex(value)>=1)deductStockForOrder(o);}
+ if(value==="cancelled"){o.status="cancelled";o.cancelledAt=Date.now();saveO();notifyCustomer(o,segment,"Cancelled");return;}
+ if(segment==="pre"){o.statusPre=value;o.stampsPre=stampSegment(o.stampsPre,PRE_STAGES,value);}
+ else{o.statusNow=value;o.stampsNow=stampSegment(o.stampsNow,ORDER_STAGES,value);if(stageIndex(value)>=1)deductStockForOrder(o);}
  o.status=o.statusNow||"placed";              // top-level badge follows the ship-now segment
+ if(value==="delivered")ensureInvoice(o);     // invoice becomes visible to the customer once delivered
  saveO();
  notifyCustomer(o,segment,segment==="pre"?preLabel(value):stageLabel(value));
 }
 
 /* ================= MY ORDERS ================= */
 /* one labelled progress rail for a segment */
-function segTracker(title,stages,status,accent){
+function stampFmt(t){try{const d=new Date(t);return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})+"<br>"+d.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});}catch(_){return"";}}
+function segTracker(title,stages,status,accent,stamps){
+ stamps=stamps||{};
  const cur=stages.findIndex(x=>x[0]===status);
  return `<div style="margin-top:10px"><div style="font-size:10.5px;font-weight:700;color:${accent};text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">${title}</div>
-  <div class="track">${stages.map(([v,l],i)=>`<div class="tstep ${i<=cur?"done":""} ${i===cur?"now":""}"><div class="tdot">${i<cur?"✓":i+1}</div><div class="tlab">${l}</div></div>`).join("")}</div></div>`;
+  <div class="track">${stages.map(([v,l],i)=>`<div class="tstep ${i<=cur?"done":""} ${i===cur?"now":""}"><div class="tdot">${i<cur?"✓":i+1}</div><div class="tlab">${l}${(i<=cur&&stamps[v])?`<div style="font-size:8.5px;color:var(--muted);margin-top:2px;line-height:1.15">${stampFmt(stamps[v])}</div>`:""}</div></div>`).join("")}</div></div>`;
 }
 function orderTracker(o){
  if(o.status==="cancelled")return `<div style="color:var(--buy-ink);font-weight:600;font-size:13px;margin-top:10px">✕ Order cancelled</div>`;
  normOrder(o);
  if(orderHasPre(o)){
   let h="";
-  if(orderHasNow(o))h+=segTracker("In-stock items — shipping now",ORDER_STAGES,o.statusNow,"var(--brand-ink)");
-  h+=segTracker("Pre-order items — being sourced",PRE_STAGES,o.statusPre,"var(--warn)");
+  if(orderHasNow(o))h+=segTracker("In-stock items — shipping now",ORDER_STAGES,o.statusNow,"var(--brand-ink)",o.stampsNow);
+  h+=segTracker("Pre-order items — being sourced",PRE_STAGES,o.statusPre,"var(--warn)",o.stampsPre);
   return h;
  }
- return segTracker("Order status",ORDER_STAGES,o.statusNow,"var(--brand-ink)");
+ return segTracker("Order status",ORDER_STAGES,o.statusNow,"var(--brand-ink)",o.stampsNow);
 }
+
+/* ================= GST INVOICE ================= */
+/* Indian financial year label, e.g. 2026-27 (FY starts 1 April) */
+function invFY(ms){const d=new Date(ms||Date.now()),y=d.getFullYear(),m=d.getMonth();const start=m>=3?y:y-1;return start+"-"+String((start+1)%100).padStart(2,"0");}
+function nextInvNo(ms){invoiceSeq++;return (INVOICE.prefix||"INV")+"/"+invFY(ms)+"/"+String(invoiceSeq).padStart(4,"0");}
+function gstRateFor(id){const inv=inventory.find(r=>r.sku===id);const r=inv&&parseFloat(inv.gst);return (r&&!isNaN(r))?r:(INVOICE.gstRate||18);}
+function hsnFor(id){const inv=inventory.find(r=>r.sku===id);return (inv&&inv.hsn)?String(inv.hsn):"";}
+function amountWords(n){n=Math.round(n);if(!n)return "Zero Rupees Only";
+ const a=["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+ const b=["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+ const two=x=>x<20?a[x]:b[Math.floor(x/10)]+(x%10?" "+a[x%10]:"");
+ const three=x=>{const h=Math.floor(x/100),r=x%100;return (h?a[h]+" Hundred"+(r?" ":""):"")+(r?two(r):"");};
+ let out="",cr=Math.floor(n/10000000);n%=10000000;const la=Math.floor(n/100000);n%=100000;const th=Math.floor(n/1000);n%=1000;
+ if(cr)out+=two(cr)+" Crore ";if(la)out+=two(la)+" Lakh ";if(th)out+=two(th)+" Thousand ";if(n)out+=three(n);
+ return out.trim()+" Rupees Only";
+}
+/* (re)compute an invoice's tax split, totals, supply type and E-way flag */
+function recalcInvoice(v,forceRate){
+ const incl=INVOICE.pricesIncludeGST!==false;
+ v.interState=(v.buyer.state||"").trim().toLowerCase()!==(v.seller.state||"").trim().toLowerCase();
+ v.placeOfSupply=v.buyer.state||"";
+ const T={taxable:0,tax:0,cgst:0,sgst:0,igst:0};
+ v.lines.forEach(l=>{if(forceRate!=null)l.rate=forceRate;
+  const taxable=incl?l.amount/(1+l.rate/100):l.unit*l.qty;const tax=incl?l.amount-taxable:taxable*l.rate/100;
+  l.taxable=taxable;l.tax=tax;if(!incl)l.amount=taxable+tax;T.taxable+=taxable;T.tax+=tax;});
+ if(v.interState)T.igst=T.tax;else{T.cgst=T.tax/2;T.sgst=T.tax/2;}
+ const grandRaw=T.taxable+T.tax;T.grand=Math.round(grandRaw);T.roundOff=+(T.grand-grandRaw).toFixed(2);
+ v.totals=T;v.ewayRequired=(INVOICE.ewayThreshold!==0)&&(T.grand>=(INVOICE.ewayThreshold||50000));
+}
+function computeInvoice(o){
+ const seller=JSON.parse(JSON.stringify(SELLER));const a=o.address||{};
+ const buyer={name:a.name||(users[o.email]?users[o.email].name:""),phone:a.phone||"",email:o.email||"",line:a.addr||a.line||"",city:a.city||"",state:a.state||"",pin:a.pin||""};
+ const incl=INVOICE.pricesIncludeGST!==false,lines=[];
+ (o.items||[]).forEach(i=>{const rate=gstRateFor(i.id),amount=i.price*i.qty;lines.push({name:i.name,hsn:hsnFor(i.id),qty:i.qty,unit:i.price,rate,amount:incl?amount:amount+amount*rate/100});});
+ const sub=(o.items||[]).reduce((s,i)=>s+i.price*i.qty,0),ship=Math.max(0,(o.total||sub)-sub);
+ if(ship>0){const rate=INVOICE.gstRate||18;lines.push({name:"Shipping & handling",hsn:"9968",qty:1,unit:ship,rate,amount:incl?ship:ship+ship*rate/100});}
+ const v={orderId:o.id,date:Date.now(),seller,buyer,lines,ewayNo:"",notes:INVOICE.terms||""};
+ recalcInvoice(v,null);return v;
+}
+function invoiceForOrder(id){return invoices.find(v=>v.orderId===id);}
+function createInvoiceForOrder(o){const v=computeInvoice(o);v.invNo=nextInvNo(v.date);invoices.push(v);saveInv();return v;}
+function ensureInvoice(o){return invoiceForOrder(o.id)||createInvoiceForOrder(o);}
+function backfillInvoices(){let made=0;orders.forEach(o=>{if(!invoiceForOrder(o.id)){createInvoiceForOrder(o);made++;}});if(made)saveInv();}
+/* printable invoice */
+function invoiceHTML(v){
+ const s=v.seller,b=v.buyer,T=v.totals;
+ const rows=v.lines.map((l,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${esc(l.name)}</td><td>${esc(l.hsn||"")}</td><td>${l.qty}</td><td>${CUR2(l.unit)}</td><td>${CUR2(l.taxable)}</td><td>${l.rate}%</td><td>${CUR2(l.tax)}</td><td>${CUR2(l.amount)}</td></tr>`).join("");
+ const taxRows=v.interState?`<tr><td colspan="8" style="text-align:right">IGST</td><td>${CUR2(T.igst)}</td></tr>`:`<tr><td colspan="8" style="text-align:right">CGST</td><td>${CUR2(T.cgst)}</td></tr><tr><td colspan="8" style="text-align:right">SGST</td><td>${CUR2(T.sgst)}</td></tr>`;
+ return `<div class="invoice-print" id="invoiceSheet">
+   <div class="inv-head"><div><div class="inv-brand">${esc(s.name||STORE)}</div><div class="inv-sub">${esc(s.line1||"")}${s.line2?", "+esc(s.line2):""}<br>${esc(s.city||"")}, ${esc(s.state||"")} ${esc(s.pin||"")}<br>GSTIN: <b>${esc(s.gstin||"—")}</b>${s.pan?" · PAN: "+esc(s.pan):""}<br>${esc(s.phone||"")}${s.email?" · "+esc(s.email):""}</div></div>
+     <div style="text-align:right"><div class="inv-title">TAX INVOICE</div><table class="inv-meta"><tr><td>Invoice No</td><td><b>${esc(v.invNo||"")}</b></td></tr><tr><td>Date</td><td>${new Date(v.date).toLocaleDateString("en-IN")}</td></tr><tr><td>Order ID</td><td>${esc(v.orderId||"")}</td></tr><tr><td>Place of supply</td><td>${esc(v.placeOfSupply||"")}</td></tr></table></div></div>
+   <div class="inv-parties"><div><div class="inv-lbl">Bill / Ship to</div><b>${esc(b.name||"")}</b><br>${esc(b.line||"")}<br>${esc(b.city||"")}, ${esc(b.state||"")} ${esc(b.pin||"")}<br>${esc(b.phone||"")}${b.email?" · "+esc(b.email):""}</div>
+     <div style="text-align:right"><div class="inv-lbl">Supply type</div>${v.interState?"Inter-state · IGST":"Intra-state · CGST + SGST"}</div></div>
+   <table class="inv-table"><thead><tr><th>#</th><th style="text-align:left">Description</th><th>HSN</th><th>Qty</th><th>Rate</th><th>Taxable</th><th>GST%</th><th>Tax</th><th>Amount</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="8" style="text-align:right">Taxable value</td><td>${CUR2(T.taxable)}</td></tr>${taxRows}${T.roundOff?`<tr><td colspan="8" style="text-align:right">Round off</td><td>${CUR2(T.roundOff)}</td></tr>`:""}<tr class="inv-grand"><td colspan="8" style="text-align:right">Grand total</td><td>${CUR2(T.grand)}</td></tr></tfoot></table>
+   <div class="inv-amt-words">Amount in words: <b>${esc(amountWords(T.grand))}</b></div>
+   ${v.ewayRequired?`<div class="inv-eway"><b>E-WAY BILL</b> — required (invoice value ≥ ₹${(INVOICE.ewayThreshold||50000).toLocaleString("en-IN")})<div class="inv-eway-no">E-way bill no.: <span>${esc(v.ewayNo||"__________________________")}</span></div><div style="font-size:10px;margin-top:4px">Generate on ewaybillgst.gov.in and enter the number here (Edit) before dispatch.</div></div>`:""}
+   ${(s.bank&&s.bank.ac)?`<div class="inv-bank">Bank: ${esc(s.bank.name||"")} · A/C ${esc(s.bank.ac)} · IFSC ${esc(s.bank.ifsc||"")}${s.bank.branch?" · "+esc(s.bank.branch):""}</div>`:""}
+   <div class="inv-foot"><div style="max-width:60%">${esc(v.notes||"")}<br><span style="color:#999">This is a computer-generated invoice.</span></div><div style="text-align:right">For <b>${esc(s.name||STORE)}</b><br><br><br>Authorised signatory</div></div>
+  </div>`;
+}
+function openInvoice(id){
+ const v=invoices.find(x=>x.invNo===id)||invoiceForOrder(id);if(!v){toast("No invoice for this order yet");return;}
+ openModal("Invoice "+v.invNo,`<div class="inv-toolbar"><button class="btn btn-grad btn-sm" id="invPrint">🖨 Print / Save PDF</button>${isAdmin?`<button class="btn btn-ghost btn-sm" id="invEdit">✎ Edit details</button>`:""}</div>${invoiceHTML(v)}`,true);
+ $("#invPrint").addEventListener("click",()=>window.print());
+ if(isAdmin&&$("#invEdit"))$("#invEdit").addEventListener("click",()=>openInvoiceEdit(v.invNo));
+}
+function openInvoiceEdit(invNo){
+ const v=invoices.find(x=>x.invNo===invNo);if(!v)return;const s=v.seller,b=v.buyer;
+ openModal("Edit invoice "+v.invNo,`<form id="invForm" class="form2">
+   <div><label>Invoice number</label><input id="iv_no" value="${esc(v.invNo)}"></div>
+   <div><label>Order ID</label><input id="iv_order" value="${esc(v.orderId)}"></div>
+   <div><label>Invoice date</label><input id="iv_date" type="date" value="${new Date(v.date).toISOString().slice(0,10)}"></div>
+   <div><label>GST rate % (recomputes tax)</label><input id="iv_rate" type="number" value="${v.lines[0]?v.lines[0].rate:(INVOICE.gstRate||18)}"></div>
+   <div class="full"><h4 style="margin:8px 0 2px">Buyer — bill / ship to</h4></div>
+   <div><label>Name</label><input id="iv_bname" value="${esc(b.name||"")}"></div>
+   <div><label>Phone</label><input id="iv_bphone" value="${esc(b.phone||"")}"></div>
+   <div class="full"><label>Address</label><input id="iv_bline" value="${esc(b.line||"")}"></div>
+   <div><label>City</label><input id="iv_bcity" value="${esc(b.city||"")}"></div>
+   <div><label>State</label><input id="iv_bstate" value="${esc(b.state||"")}"></div>
+   <div><label>PIN</label><input id="iv_bpin" value="${esc(b.pin||"")}"></div>
+   <div class="full"><h4 style="margin:8px 0 2px">Seller — your details</h4></div>
+   <div><label>Business name</label><input id="iv_sname" value="${esc(s.name||"")}"></div>
+   <div><label>GSTIN</label><input id="iv_sgstin" value="${esc(s.gstin||"")}"></div>
+   <div class="full"><label>Address line 1</label><input id="iv_sl1" value="${esc(s.line1||"")}"></div>
+   <div class="full"><label>Address line 2</label><input id="iv_sl2" value="${esc(s.line2||"")}"></div>
+   <div><label>City</label><input id="iv_scity" value="${esc(s.city||"")}"></div>
+   <div><label>State</label><input id="iv_sstate" value="${esc(s.state||"")}"></div>
+   <div><label>PIN</label><input id="iv_spin" value="${esc(s.pin||"")}"></div>
+   <div class="full"><label>E-way bill number ${v.ewayRequired?'<span class="req">(required for this value)</span>':"(optional)"}</label><input id="iv_eway" value="${esc(v.ewayNo||"")}" placeholder="Enter E-way bill no."></div>
+   <div class="full" style="display:flex;gap:10px;margin-top:4px"><button class="btn btn-grad" type="submit">Save invoice</button><button class="btn btn-ghost" type="button" id="iv_cancel">Cancel</button></div>
+  </form>`,true);
+ $("#iv_cancel").addEventListener("click",()=>openInvoice(v.invNo));
+ $("#invForm").addEventListener("submit",e=>{e.preventDefault();
+  v.invNo=$("#iv_no").value.trim()||v.invNo;v.orderId=$("#iv_order").value.trim();
+  const dv=$("#iv_date").value;if(dv)v.date=new Date(dv).getTime();
+  v.buyer={name:$("#iv_bname").value.trim(),phone:$("#iv_bphone").value.trim(),email:v.buyer.email,line:$("#iv_bline").value.trim(),city:$("#iv_bcity").value.trim(),state:$("#iv_bstate").value.trim(),pin:$("#iv_bpin").value.trim()};
+  v.seller=Object.assign({},v.seller,{name:$("#iv_sname").value.trim(),gstin:$("#iv_sgstin").value.trim(),line1:$("#iv_sl1").value.trim(),line2:$("#iv_sl2").value.trim(),city:$("#iv_scity").value.trim(),state:$("#iv_sstate").value.trim(),pin:$("#iv_spin").value.trim()});
+  v.ewayNo=$("#iv_eway").value.trim();
+  const nr=parseFloat($("#iv_rate").value);recalcInvoice(v,(nr&&!isNaN(nr))?nr:null);
+  saveInv();toast("Invoice saved");openInvoice(v.invNo);});
+}
+
+/* ================= MY ORDERS ================= */
 function openOrders(){
  const mine=orders.filter(o=>o.email===session).sort((a,b)=>b.date-a.date);
  openModal("My orders",mine.length?mine.map(o=>`<div style="border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px">
@@ -1337,7 +1493,9 @@ function openOrders(){
    <div style="font-size:13px;color:var(--ink-2)">${o.items.map(i=>`${esc(i.name)} × ${i.qty}`+(i.qtyPre>0?` <span style="color:var(--warn)">(${i.qtyNow||0} now + ${i.qtyPre} pre-order ~${procureDaysOf(byId(i.id))||o.etaDays}d)</span>`:"")).join("<br>")}</div>
    ${orderTracker(o)}
    <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:13px;gap:10px;flex-wrap:wrap"><span style="color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}${orderHasPre(o)?(orderHasNow(o)?` · in-stock by <b style="color:var(--brand-ink)">${addDays(etaNowDaysOf(o))}</b>`:"")+` · pre-order by <b style="color:var(--warn)">${addDays(etaPreDaysOf(o))}</b>`:(o.etaDays?" · est. by <b>"+addDays(etaNowDaysOf(o))+"</b>":"")}</span><b>${CUR(o.total)}</b></div>
-   ${o.status==="delivered"?`<p class="formnote" style="margin-top:8px;color:var(--save)">✓ Delivered — you can now review these products on their pages.</p>`:""}</div>`).join(""):'<p style="color:var(--muted);text-align:center;padding:30px 0">No orders yet.<br>When you place an order it appears here.</p>');
+   ${o.status==="delivered"?`<p class="formnote" style="margin-top:8px;color:var(--save)">✓ Delivered — you can now review these products on their pages.</p>`:""}
+   ${(o.status==="delivered"||o.statusPre==="delivered")&&invoiceForOrder(o.id)?`<button class="btn btn-ghost btn-sm" data-invc="${o.id}" style="margin-top:8px">🧾 View / download invoice</button>`:""}</div>`).join(""):'<p style="color:var(--muted);text-align:center;padding:30px 0">No orders yet.<br>When you place an order it appears here.</p>');
+ $$("#modalBody [data-invc]").forEach(btn=>btn.addEventListener("click",()=>openInvoice(btn.dataset.invc)));
 }
 
 /* ================= ADMIN DASHBOARD ================= */
@@ -1375,6 +1533,7 @@ function exportJSON(title,path,data){
 let adminTab="products";
 function renderAdmin(){
  normAllOrders();
+ backfillInvoices();
  const revenue=orders.reduce((s,o)=>s+o.total,0);
  $("#viewAdmin").innerHTML=`
   <div class="admin-hd"><h1>Master dashboard</h1><span class="pill">ADMIN</span><div class="sp"><button class="btn btn-ghost btn-sm" id="admStore">View store</button><button class="btn btn-danger btn-sm" id="admExit">Exit admin</button></div></div>
@@ -1384,6 +1543,7 @@ function renderAdmin(){
    <button data-at="inventory" aria-pressed="${adminTab==='inventory'}">📦 Inventory</button>
    <button data-at="orders" aria-pressed="${adminTab==='orders'}">Orders (${orders.length})</button>
    <button data-at="preorders" aria-pressed="${adminTab==='preorders'}">🕒 Pre-orders (${orders.filter(o=>orderHasPre(o)&&o.status!=="cancelled"&&preIndex(o.statusPre)<preIndex("ready")).length})</button>
+   <button data-at="invoices" aria-pressed="${adminTab==='invoices'}">🧾 Invoices (${invoices.length})</button>
    <button data-at="customers" aria-pressed="${adminTab==='customers'}">Customers (${Object.keys(users).length})</button>
    <button data-at="reviews" aria-pressed="${adminTab==='reviews'}">Reviews (${reviews.length})</button>
    <button data-at="questions" aria-pressed="${adminTab==='questions'}">Questions (${questions.length})</button>
@@ -1453,6 +1613,16 @@ function renderAdminPanel(revenue){
    ${lines.map(({o,i,vendor})=>`<tr><td class="mono">${o.id}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}</div></td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td>${esc(i.name)}<div class="mono" style="font-size:11px;color:var(--muted)">${esc(i.id)}</div></td><td><b>${i.qtyPre}</b></td><td style="font-size:12px;font-weight:600;color:var(--buy-ink)">📞 ${esc(vendor||"vendor")}</td><td style="min-width:150px"><select class="presel" data-order="${o.id}">${PRE_STAGES.map(([v,l])=>`<option value="${v}" ${o.statusPre===v?"selected":""}>${l}</option>`).join("")}</select></td><td class="mono" style="font-size:12px">${addDays(etaPreDaysOf(o))}</td></tr>`).join("")}
    </tbody></table></div><p class="formnote" style="margin-top:12px">Each row is a pre-order line to procure. Set it to <b>Vendor ordered</b> when you place the PO, <b>Received</b> when stock arrives, then <b>Ready to ship</b> → <b>Shipped</b>. ${inventory.length?"":"<b>Tip:</b> load your inventory Excel in the Inventory tab to show the right vendor per SKU."}</p>`:'<p style="color:var(--muted);padding:30px 0">No pre-orders right now. When a customer orders more than you have in stock, the extra quantity appears here to source.</p>'}`;
   host.querySelectorAll(".presel").forEach(sel=>sel.addEventListener("change",()=>{const o=orders.find(x=>x.id===sel.dataset.order);if(o){advanceOrder(o,"pre",sel.value);toast("Pre-order "+o.id+" → "+preLabel(sel.value));renderAdmin();}}));
+ }
+ else if(adminTab==="invoices"){
+  const needEway=invoices.filter(v=>v.ewayRequired&&!v.ewayNo).length;
+  host.innerHTML=`${(!SELLER.gstin||SELLER.gstin.indexOf("ABCDE")>=0)?`<div style="background:var(--buy-soft);border:1px solid color-mix(in srgb,var(--buy) 32%,transparent);border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--buy-ink);margin-bottom:14px;line-height:1.6"><b>⚠ Fill your business details first.</b> Open <b>config.js</b> and set your real name, address, <b>GSTIN</b> and PAN in the <span class="mono">SELLER</span> block so invoices are valid. New invoices then use them automatically.</div>`:""}
+   ${needEway?`<div style="background:color-mix(in srgb,var(--warn) 16%,transparent);border:1px solid var(--warn);border-radius:12px;padding:12px 15px;margin-bottom:14px;font-size:13px"><b style="color:var(--warn)">🚚 ${needEway} invoice${needEway>1?"s":""} need an E-way bill number</b> before dispatch (value ≥ ₹${(INVOICE.ewayThreshold||50000).toLocaleString("en-IN")}). Open one and click Edit to add it.</div>`:""}
+   ${invoices.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Invoice</th><th>Date</th><th>Order</th><th>Customer</th><th>Value</th><th>E-way</th><th style="text-align:right">Action</th></tr></thead><tbody>
+   ${invoices.slice().reverse().map(v=>`<tr><td class="mono">${esc(v.invNo)}</td><td>${new Date(v.date).toLocaleDateString("en-IN")}</td><td class="mono">${esc(v.orderId)}</td><td>${esc(v.buyer.name||"")}<div style="font-size:11px;color:var(--muted)">${esc(v.buyer.email||"")}</div></td><td class="mono">${CUR(v.totals.grand)}</td><td>${v.ewayRequired?(v.ewayNo?'<span class="mono" style="font-size:11px">'+esc(v.ewayNo)+'</span>':'<span style="color:var(--buy-ink);font-size:11px;font-weight:600">needed</span>'):'<span style="color:var(--muted)">—</span>'}</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-ghost btn-sm" data-invview="${esc(v.invNo)}">View / Print</button> <button class="btn btn-ghost btn-sm" data-invedit="${esc(v.invNo)}">Edit</button></td></tr>`).join("")}
+   </tbody></table></div><p class="formnote" style="margin-top:12px">Every order auto-generates an invoice. <b>View / Print</b> opens it to print or Save as PDF; <b>Edit</b> changes the number, order ID, addresses, GST rate or adds the E-way bill number. Customers can download their copy from <b>My orders</b> once delivered.</p>`:'<p style="color:var(--muted);padding:30px 0">No invoices yet — one is created automatically the moment an order is placed.</p>'}`;
+  host.querySelectorAll("[data-invview]").forEach(b=>b.addEventListener("click",()=>openInvoice(b.dataset.invview)));
+  host.querySelectorAll("[data-invedit]").forEach(b=>b.addEventListener("click",()=>openInvoiceEdit(b.dataset.invedit)));
  }
  else if(adminTab==="customers"){
   const list=Object.values(users);
@@ -1615,9 +1785,30 @@ const root=document.documentElement;
 try{const s=localStorage.getItem("rbx_theme");if(s)root.setAttribute("data-theme",s);}catch(_){}
 $("#themeBtn").addEventListener("click",()=>{const cur=root.getAttribute("data-theme");const dark=cur?cur==="dark":matchMedia("(prefers-color-scheme: dark)").matches;const t=dark?"light":"dark";root.setAttribute("data-theme",t);try{localStorage.setItem("rbx_theme",t);}catch(_){}});
 
+/* ================= BRANDING (everything company-facing comes from config.js) ================= */
+function brandHTML(name){name=String(name||"STORE");const i=Math.ceil(name.length/2);return esc(name.slice(0,i))+"<b>"+esc(name.slice(i))+"</b>";}
+function applyBranding(){
+ const email=(COMPANY.email||ORDER_EMAIL||SELLER.email||"").trim();
+ const phone=(COMPANY.phone||SELLER.phone||"").trim();
+ const addr =(COMPANY.address||[SELLER.city,SELLER.state].filter(Boolean).join(", ")).trim();
+ const set=(id,fn)=>{const el=$("#"+id);if(el)fn(el);};
+ set("brandTop",el=>el.innerHTML=brandHTML(STORE));
+ set("brandFoot",el=>el.innerHTML=brandHTML(STORE));
+ set("brandCopy",el=>el.textContent=STORE);
+ set("footTagline",el=>{if(COMPANY.tagline)el.textContent=COMPANY.tagline;});
+ set("topShip",el=>el.textContent=CUR(FREE_SHIP_OVER));
+ set("footEmail",el=>{if(email){el.textContent=email;el.href="mailto:"+email;}});
+ set("footHelp",el=>{if(email)el.href="mailto:"+email;});
+ set("footPhone",el=>{if(phone){el.textContent=phone;el.href="tel:"+phone.replace(/[^\d+]/g,"");}});
+ set("footAddr",el=>{if(addr)el.textContent=addr;});
+ try{document.title=STORE+" Store";}catch(_){}
+}
+
 /* ================= INIT ================= */
 $("#yr").textContent=new Date().getFullYear();
+applyBranding();
 renderCats();renderGrid();updateCart();refreshAccount();
+normAllOrders();backfillInvoices();
 loadRepoProducts();
 loadStockSheet();
 loadInventory();

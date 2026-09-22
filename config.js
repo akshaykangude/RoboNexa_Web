@@ -17,6 +17,14 @@ var GH_BRANCH = "main";
 var STORE_CITY  = "Pune";
 var STORE_STATE = "Maharashtra";
 
+/* ---- Public contact shown on the storefront (footer, contact section) ---- */
+var COMPANY = {
+  tagline: "India's engineer-run robotics store — actuators, motors, drives, sensors and complete robots, with datasheets and real support.",
+  phone:   "+91 XXXXX XXXXX",              // shown & click-to-call in the footer
+  email:   "",                              // blank = uses ORDER_EMAIL above
+  address: "Pune, Maharashtra · India"      // one-line address in the footer
+};
+
 /* ---- Stock & delivery lead times ---- */
 var LEADTIME       = { procureDays: 20, deliver: { city: 2, state: 3, other: 5 } };
 var FREE_SHIP_OVER = 25000;   // free shipping over this amount (INR)
@@ -33,3 +41,28 @@ var RAZORPAY_KEY_ID = "";     // your Razorpay Key ID e.g. "rzp_live_xxxx"  (bla
 /* ---- Sending real emails (OTP + orders) ---- */
 var MAIL_WEBHOOK = "https://script.google.com/macros/s/AKfycbwUJ0v4Jq8bt4-x6BfNSClG0u1nhDpJdVN1JMH49Oc4aXQbzUlIMpQu2LEHmMSAAWCU7w/exec";
 var EMAILJS      = { publicKey: "", serviceId: "", templateId: "" };  // alternative to the webhook
+
+/* ---- YOUR business details for the GST invoice (fill these in) ---- */
+var SELLER = {
+  name:    "ROBONEXA",                       // legal / trade name on the invoice
+  line1:   "Shop / unit address line 1",     // your address
+  line2:   "Area, landmark",
+  city:    "Pune",
+  state:   "Maharashtra",
+  stateCode: "27",                           // GST state code (Maharashtra = 27)
+  pin:     "411001",
+  gstin:   "27ABCDE1234F1Z5",                // your GSTIN (15 chars)
+  pan:     "ABCDE1234F",
+  phone:   "+91 XXXXX XXXXX",
+  email:   "onlyshopes@gmail.com",
+  bank:    { name:"", ac:"", ifsc:"", branch:"" }   // optional, printed on invoice if filled
+};
+
+/* ---- Invoice settings ---- */
+var INVOICE = {
+  prefix:        "RNX",     // invoice number prefix -> RNX/2026-27/0001
+  gstRate:       18,        // default GST % (used when a product has no rate of its own)
+  pricesIncludeGST: true,   // your store prices already include GST (invoice back-calculates the tax)
+  ewayThreshold: 50000,     // show the E-way bill block when invoice value >= this (INR); 0 = always
+  terms:         "Goods once sold are covered by manufacturer warranty only. Subject to Pune jurisdiction."
+};
