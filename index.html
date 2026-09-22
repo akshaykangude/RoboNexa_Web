@@ -462,29 +462,15 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg><span id="toastMsg">Done</span></div>
 
+<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
-/* ================= CONFIG ================= */
-const STORE="ROBONEXA";
-const ORDER_EMAIL="akshaykangude35@gmail.com";
-const ADMIN_PASS="admin123";          // <-- change this: your Master/Admin password
-// ---- Your GitHub repo (so admin can browse files committed there) ----
-const GH_USER="akshaykangude";           // <-- your GitHub username
-const GH_REPO="RoboNexa_Web";            // <-- your repo name
-const GH_BRANCH="main";                  // <-- usually "main"
-// ---- Stock & delivery lead times (used when an item is out of stock / not in the sheet) ----
-const LEADTIME={ procureDays:20, deliver:{ city:2, state:3, other:5 } };
-// Stock is read from products/stock.csv  (columns: id,stock)  — edit it in Excel.
-const INVENTORY_FILE="ROBONEXA_Inventory.xlsx"; // admin Inventory tab reads this (repo or your computer)
-// ---- We operate from here (used to work out the delivery time tier) ----
-const STORE_CITY="Pune", STORE_STATE="Maharashtra";
-// ---- UPI payment ----
-const UPI_VPA="";            // <-- your UPI ID, e.g. "akshaykangude@okhdfcbank" (blank = QR placeholder)
-const UPI_NAME="ROBONEXA";   // payee name shown in the UPI app
-// ---- EmailJS: send real OTP emails from your mailbox with no server (emailjs.com) ----
-const EMAILJS={ publicKey:"", serviceId:"", templateId:"" };  // fill all three to enable real emails
-const FREE_SHIP_OVER=25000, SHIP_FLAT=499;
+/* ================= CONFIG =================
+   All editable settings live in config.js (loaded just before this script):
+   admin password, UPI ID, Razorpay key, emails, GitHub repo, lead times, etc.
+   Change them there — you don't need to touch this file. */
+if(typeof RAZORPAY_KEY_ID==="undefined"){var RAZORPAY_KEY_ID="";}
 const CUR=n=>"₹"+Number(n||0).toLocaleString("en-IN");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -842,6 +828,14 @@ async function emailjsSend(params){
    body:JSON.stringify({service_id:EMAILJS.serviceId,template_id:EMAILJS.templateId,user_id:EMAILJS.publicKey,template_params:params})});
   return r.ok;}catch(_){return false;}
 }
+/* unified sender: Google Apps Script webhook first, else EmailJS, else false (demo) */
+async function mailSend(to,subject,message,code){
+ if(MAIL_WEBHOOK){
+  try{const r=await fetch(MAIL_WEBHOOK,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({to,subject,message,code:code||""})});
+   try{const j=await r.json();return !!(j&&j.ok);}catch(_){return r.ok;}}catch(_){return false;}
+ }
+ return emailjsSend({to_email:to,subject,message,code:code||""});
+}
 /* ---- which delivery tier does this address fall in? ---- */
 function locTier(city,state){
  if((city||"").trim().toLowerCase()===STORE_CITY.toLowerCase()) return "city";
@@ -888,6 +882,7 @@ function openAddressStep(){
  });
 }
 /* Step 2 — UPI QR payment */
+function loadScript(src){return new Promise((res,rej)=>{if([...document.scripts].some(s=>s.src===src))return res();const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
 function openPaymentStep(addr){
  const ids=Object.keys(cart).filter(byId);
  const items=ids.map(id=>{const p=byId(id);return{id,name:p.name,price:p.price,qty:cart[id]};});
@@ -897,25 +892,51 @@ function openPaymentStep(addr){
  const days=(anyMTO?LEADTIME.procureDays:0)+(LEADTIME.deliver[tier]??LEADTIME.deliver.other);
  const oid="ORD-"+Date.now().toString().slice(-6);
  const tierLabel=tier==="city"?"within "+STORE_CITY:tier==="state"?"within "+STORE_STATE:"out of state";
+ const ctx={addr,items,tot,tier,days,oid};
+ const head=`<div style="font-size:12.5px;color:var(--muted);text-align:center">Order ${oid} · deliver to ${esc(addr.city)}, ${esc(addr.state)} (${tierLabel})</div>
+   <div style="margin:8px 0 16px;font-size:14px;text-align:center">📦 Delivery in <b>${days} days</b> — by <b>${addDays(days)}</b>${anyMTO?` <span style="color:var(--muted)">(incl. ~${LEADTIME.procureDays}-day sourcing)</span>`:""}</div>`;
+ openModal("Payment · "+CUR(tot),`${head}
+   <div style="font-size:13px;color:var(--ink-2);text-align:center;margin-bottom:12px">Choose how you'd like to pay</div>
+   <button class="btn btn-brand big" id="mUpi"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6"/><rect x="14" y="4" width="6" height="6"/><rect x="4" y="14" width="6" height="6"/><path d="M14 14h6v6h-6z"/></svg> Pay by UPI (QR)</button>
+   <button class="btn btn-grad big" id="mCard" style="margin-top:10px"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg> Pay by Card</button>
+   <p class="cart-note">UPI is direct to us (no fees). Card is processed securely by Razorpay.</p>`);
+ $("#mUpi").addEventListener("click",()=>showUpiPay(ctx));
+ $("#mCard").addEventListener("click",()=>showCardPay(ctx));
+}
+function placeOrder(ctx,method,ref){
+ const {addr,items,tot,tier,days,oid}=ctx;
+ orders.push({id:oid,email:session,items,total:tot,status:"placed",date:Date.now(),address:addr,tier,etaDays:days,method,paymentRef:ref||""});saveO();
+ mailSend(ORDER_EMAIL,"New order "+oid+" — "+CUR(tot),`${items.map(i=>i.name+" ×"+i.qty).join(", ")}\nTotal ${CUR(tot)}\nPayment: ${method}${ref?" ("+ref+")":""}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days`,"");
+ cart={};saveC();updateCart();closeModal();toast("Order placed! ("+oid+")");
+}
+function showUpiPay(ctx){
+ const {tot,oid}=ctx;
  const upi=UPI_VPA?`upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent(UPI_NAME)}&am=${tot}&cu=INR&tn=${encodeURIComponent(oid)}`:"";
- openModal("Pay "+CUR(tot),`
-  <div style="text-align:center">
-   <div style="font-size:12.5px;color:var(--muted)">Order ${oid} · deliver to ${esc(addr.city)}, ${esc(addr.state)} (${tierLabel})</div>
-   <div style="margin:8px 0 16px;font-size:14px">📦 Delivery in <b>${days} days</b> — by <b>${addDays(days)}</b>${anyMTO?` <span style="color:var(--muted)">(incl. ~${LEADTIME.procureDays}-day sourcing)</span>`:""}</div>
+ openModal("Pay "+CUR(tot)+" by UPI",`<div style="text-align:center">
    ${upi?`<div id="qrBox" style="display:inline-block;padding:14px;background:#fff;border-radius:14px;border:1px solid var(--line)"></div>
      <div style="margin-top:12px;font-size:14px">Scan with any UPI app (GPay / PhonePe / Paytm) and pay <b>${CUR(tot)}</b></div>
      <div class="mono" style="font-size:12px;color:var(--muted);margin-top:4px">${esc(UPI_VPA)}</div>`
-    :`<div style="background:var(--buy-soft);color:var(--buy-ink);border-radius:12px;padding:14px;font-size:13px;line-height:1.6">Set your <b>UPI ID</b> in the code (<span class="mono">UPI_VPA</span>) and a live payment QR for <b>${CUR(tot)}</b> will show here.</div>`}
+    :`<div style="background:var(--buy-soft);color:var(--buy-ink);border-radius:12px;padding:14px;font-size:13px;line-height:1.6">Set your <b>UPI ID</b> (<span class="mono">UPI_VPA</span>) in config.js and the live QR for <b>${CUR(tot)}</b> will show here.</div>`}
    <button class="btn btn-buy big" id="paidBtn" style="margin-top:16px">I've paid — place my order</button>
-   <p class="cart-note">After paying, tap the button. We confirm your order and delivery by email.</p>
+   <button class="linkbtn" id="backPay" style="margin-top:12px">← Back to payment options</button>
   </div>`);
  if(upi&&window.QRCode){try{new QRCode(document.getElementById("qrBox"),{text:upi,width:200,height:200,correctLevel:QRCode.CorrectLevel.M});}catch(_){}}
- $("#paidBtn").addEventListener("click",()=>{
-  const order={id:oid,email:session,items,total:tot,status:"placed",date:Date.now(),address:addr,tier,etaDays:days};
-  orders.push(order);saveO();
-  emailjsSend({to_email:ORDER_EMAIL,subject:"New order "+oid+" — "+CUR(tot),message:`${items.map(i=>i.name+" ×"+i.qty).join(", ")}\nTotal ${CUR(tot)}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days`,code:""});
-  cart={};saveC();updateCart();closeModal();toast("Order placed! ("+oid+")");
- });
+ $("#paidBtn").addEventListener("click",()=>placeOrder(ctx,"UPI",""));
+ $("#backPay").addEventListener("click",()=>openPaymentStep(ctx.addr));
+}
+async function showCardPay(ctx){
+ const {tot,oid,addr}=ctx;
+ if(!RAZORPAY_KEY_ID){
+  openModal("Pay by Card",`<div style="background:var(--buy-soft);color:var(--buy-ink);border-radius:12px;padding:15px;font-size:13px;line-height:1.7">💳 <b>Card payments need Razorpay.</b> Create a free account at razorpay.com, then put your <b>Key ID</b> as <span class="mono">RAZORPAY_KEY_ID</span> in config.js. Razorpay shows a secure card form (name, number, expiry, CVV) — handled by them, never stored on this site.<br><br>For now, please use <b>UPI</b>.</div><button class="linkbtn" id="backPay" style="margin-top:14px">← Back to payment options</button>`);
+  $("#backPay").addEventListener("click",()=>openPaymentStep(addr));return;
+ }
+ try{
+  await loadScript("https://checkout.razorpay.com/v1/checkout.js");
+  const rzp=new Razorpay({key:RAZORPAY_KEY_ID,amount:tot*100,currency:"INR",name:STORE,description:"Order "+oid,
+   prefill:{name:addr.name,contact:addr.phone,email:session},theme:{color:"#0FB2C4"},
+   handler:function(resp){placeOrder(ctx,"Card",resp.razorpay_payment_id||"");}});
+  rzp.open();
+ }catch(_){toast("Could not open card checkout");}
 }
 /* drawer */
 const cartEl=$("#cart"),scrim=$("#scrim");
@@ -958,16 +979,15 @@ function openAdminLogin(){
  openModal("Master / Admin login",`
   <p class="formnote" style="margin-bottom:14px">Enter the store admin password to manage products, prices, images, discounts and orders.</p>
   <form id="admForm"><div class="field"><label>Admin password <span class="req">*</span></label><input id="adm_pass" type="password" autocomplete="off"></div><div class="err" id="adm_err"></div><button class="btn btn-dark big" type="submit">Enter admin</button></form>
-  <p class="formnote" style="margin-top:12px">Default password is <b>admin123</b> — change <code>ADMIN_PASS</code> in the code. In the live version this becomes a proper secure owner login.</p>`);
+  <p class="formnote" style="margin-top:12px">Set your password as <code>ADMIN_PASS</code> in <b>config.js</b>.</p>`);
  $("#admForm").addEventListener("submit",e=>{e.preventDefault();if($("#adm_pass").value===ADMIN_PASS){isAdmin=true;DB.set("admin",true);closeModal();refreshAccount();renderAdmin();goAdmin();toast("Admin mode enabled");}else $("#adm_err").textContent="Incorrect admin password.";});
 }
 /* ---- forgot password + OTP (demo; live = email backend) ---- */
 let otpState=null;
 const genOTP=()=>""+Math.floor(100000+Math.random()*900000);
 function otpBanner(email,code,sent,purpose){
- return sent
-  ? `<div style="background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:12px;padding:13px 15px;font-size:13px;color:var(--brand-ink);margin-bottom:16px">✓ A 6-digit ${purpose} code has been emailed to <b>${esc(email)}</b>. Check your inbox (and spam).</div>`
-  : `<div style="background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:12px;padding:13px 15px;font-size:12.5px;color:var(--brand-ink);margin-bottom:16px"><b>Demo:</b> email isn't configured yet — in the live store this is emailed to <b>${esc(email)}</b>. For now, your code is:<div class="mono" style="font-size:26px;font-weight:700;letter-spacing:6px;text-align:center;margin-top:8px;color:var(--ink)">${code}</div></div>`;
+ // Never display the code on screen — it is emailed to the customer.
+ return `<div style="background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:12px;padding:13px 15px;font-size:13px;color:var(--brand-ink);margin-bottom:16px">✓ A 6-digit ${purpose} code has been sent to <b>${esc(email)}</b>. Please check your inbox (and spam), then enter it below.</div>`;
 }
 function openForgot(pref){
  openModal("Reset your password",`
@@ -982,7 +1002,7 @@ function openForgot(pref){
   if(!users[email]){$("#fp_err").textContent="No account is registered with this email.";return;}
   const code=genOTP();otpState={email,code,exp:Date.now()+10*60000};
   const btn=$("#fpForm1").querySelector("button");btn.textContent="Sending…";btn.disabled=true;
-  const sent=await emailjsSend({to_email:email,subject:"Your ROBONEXA password reset code",message:"Your password reset code is "+code,code});
+  const sent=await mailSend(email,"Your ROBONEXA password reset code","We received a request to reset your ROBONEXA password. Use the code below to continue. If this wasn't you, please ignore this email.",code);
   showOtpStep(email,code,sent);
  });
 }
@@ -1010,7 +1030,7 @@ let pendingSignup=null;
 async function startSignupVerify(name,email,pass){
  const code=genOTP();pendingSignup={name,email,pass,code,exp:Date.now()+10*60000};
  openModal("Verify your email",`<p class="formnote" style="padding:10px 0">Sending a verification code to <b>${esc(email)}</b>…</p>`);
- const sent=await emailjsSend({to_email:email,subject:"Your ROBONEXA verification code",message:"Your verification code is "+code,code});
+ const sent=await mailSend(email,"Your ROBONEXA verification code","Thank you for signing up at ROBONEXA. Please use the code below to verify your email address:",code);
  openModal("Verify your email",`
   ${otpBanner(email,code,sent,"verification")}
   <form id="svForm">
