@@ -612,6 +612,7 @@ let orders=DB.get("orders",[]);         // {id,email,items:[{id,name,price,qty}]
 let reviews=DB.get("reviews",[]);       // {code,pid,email,name,rating,title,text,date,device}
 let questions=DB.get("questions",[]);   // {code,pid,email,name,text,date,device,answered}
 let stockSheet={};                      // {id: qty}  loaded from products/stock.csv
+let leadSheet={};                       // {id: procurement days}  optional 3rd column of stock.csv
 let cart=DB.get("cart",{});
 let session=DB.get("session",null);     // email
 let isAdmin=DB.get("admin",false);
@@ -621,13 +622,15 @@ const saveP=()=>DB.set("products",products), saveU=()=>DB.set("users",users), sa
 function deviceInfo(){try{return{ua:navigator.userAgent,platform:navigator.platform||"",lang:navigator.language||"",screen:(screen.width+"×"+screen.height),tz:(Intl.DateTimeFormat().resolvedOptions().timeZone||""),ref:document.referrer||"direct",when:new Date().toISOString()};}catch(_){return{when:new Date().toISOString()};}}
 /* effective stock: sheet value wins if present, else the product's own stock */
 function stockOf(p){const q=(p&&p.id in stockSheet)?stockSheet[p.id]:(p?p.stock:0);return {qty:Number(q)||0,inStock:(Number(q)||0)>0};}
-function deliveryDays(inStock,loc){const d=LEADTIME.deliver[loc]??LEADTIME.deliver.other;return (inStock?0:LEADTIME.procureDays)+d;}
+/* procurement days for a product: sheet's lead column, else product.procureDays, else global */
+function procureDaysOf(p){const id=p&&p.id;if(id&&id in leadSheet)return leadSheet[id];if(p&&p.procureDays)return Number(p.procureDays)||LEADTIME.procureDays;return LEADTIME.procureDays;}
+function deliveryDays(inStock,loc,procure){const d=LEADTIME.deliver[loc]??LEADTIME.deliver.other;return (inStock?0:(procure??LEADTIME.procureDays))+d;}
 function addDays(n){const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"});}
 async function loadStockSheet(){
  try{const r=await fetch("products/stock.csv",{cache:"no-store"});if(!r.ok)return;const t=await r.text();
   const rows=t.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-  const map={};for(let i=0;i<rows.length;i++){const c=rows[i].split(",");const id=(c[0]||"").trim();if(!id||/^id$/i.test(id))continue;map[id]=parseInt((c[1]||"0").trim(),10)||0;}
-  stockSheet=map; if(document.body.classList.contains("detail")){/* re-render current detail if open */}
+  const map={},lead={};for(let i=0;i<rows.length;i++){const c=rows[i].split(",");const id=(c[0]||"").trim();if(!id||/^id$/i.test(id))continue;map[id]=parseInt((c[1]||"0").trim(),10)||0;if(c[2]!==undefined&&c[2].trim()!=="")lead[id]=parseInt(c[2].trim(),10)||LEADTIME.procureDays;}
+  stockSheet=map; leadSheet=lead;
   renderGrid();
  }catch(_){/* no sheet / preview */}
 }
@@ -650,7 +653,7 @@ function parseInvWorkbook(ab){
 }
 function applyInventoryToStock(){
  if(!inventory.length)return;
- inventory.forEach(r=>{const ov=invOverride[r.sku];stockSheet[r.sku]=(ov&&ov.stock!=null)?ov.stock:r.stock;});
+ inventory.forEach(r=>{const ov=invOverride[r.sku];stockSheet[r.sku]=(ov&&ov.stock!=null)?ov.stock:r.stock;const ld=parseInt(r.lead,10);if(ld)leadSheet[r.sku]=ld;});
  renderGrid(); if(document.body.classList.contains("admin"))renderAdmin();
 }
 async function loadInventory(){
@@ -694,7 +697,7 @@ function cardHTML(p){const d=discount(p),r=ratingOf(p.id);
    <div class="rating"><span class="stars">${starsHTML(r.avg)}</span>${r.n?r.avg.toFixed(1)+" · "+r.n+" review"+(r.n>1?"s":""):"No reviews yet"}</div>
    <div class="keyspec">${(p.key||[]).map(k=>`<span>${esc(k)}</span>`).join("")}</div>
    <div class="priceline"><span class="price">${CUR(p.price)}</span>${p.mrp?`<span class="mrp">${CUR(p.mrp)}</span>`:""}</div>
-   <div class="stock${stockOf(p).inStock?"":" out"}">${stockOf(p).inStock?"In stock":"Pre-order · ships in ~"+LEADTIME.procureDays+" days"}</div>
+   <div class="stock${stockOf(p).inStock?"":" out"}">${stockOf(p).inStock?stockOf(p).qty+" left":"Pre-order · ~"+procureDaysOf(p)+" days"}</div>
    <div class="pact">
      ${stockOf(p).inStock
        ? `<button class="addbtn" data-add="${p.id}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button>`
@@ -746,7 +749,7 @@ function renderDetail(p){
     <p style="color:var(--ink-2)">${esc(p.desc||"")}</p>
     <div class="pricebox">
      <div class="pl"><span class="price">${CUR(p.price)}</span>${p.mrp?`<span class="mrp">${CUR(p.mrp)}</span>`:""}${d?`<span class="save">Save ${d}%</span>`:""}</div>
-     <div class="tax">Incl. of taxes where shown · ${stockOf(p).inStock?`<span style="color:var(--save);font-weight:600">In stock (${stockOf(p).qty})</span>`:`<span style="color:var(--warn);font-weight:600">Made to order — ships in ~${LEADTIME.procureDays} days</span>`}</div>
+     <div class="tax">Incl. of taxes where shown · ${stockOf(p).inStock?`<span style="color:var(--save);font-weight:600">${stockOf(p).qty} in stock</span>`:`<span style="color:var(--warn);font-weight:600">Special request · pre-order, ready in ~${procureDaysOf(p)} days</span>`}</div>
      <div class="buyrow">
        <div class="qty"><button data-dq="1">−</button><span id="dQty">1</span><button data-dq="2">+</button></div>
        <button class="btn ${stockOf(p).inStock?"btn-buy":""}" id="dAdd" ${stockOf(p).inStock?"":'style="background:var(--warn);color:#fff"'}>${stockOf(p).inStock?"Add to cart":"Pre-order"}</button>
@@ -772,7 +775,8 @@ function renderDetail(p){
  $$("#viewDetail .th").forEach(t=>t.addEventListener("click",()=>{const i=+t.dataset.img;$("#galMain").innerHTML=imgs[i]?`<img src="${esc(imgs[i])}">`:media(p);$$("#viewDetail .th").forEach(x=>x.classList.toggle("sel",x===t));}));
  $$("#viewDetail .dtab").forEach(t=>t.addEventListener("click",()=>{detailTab=t.dataset.dt;$$("#viewDetail .dtab").forEach(x=>x.setAttribute("aria-pressed",x===t));renderDetailPanels(p);}));
  const est=$("#deliverEst"),sk=stockOf(p);
- const showEst=loc=>{const days=deliveryDays(sk.inStock,loc);est.innerHTML=`<b>${days} days</b> — by <b>${addDays(days)}</b>${sk.inStock?"":` <span style="color:var(--muted)">(incl. ~${LEADTIME.procureDays}-day sourcing)</span>`}`;};
+ const proc=procureDaysOf(p);
+ const showEst=loc=>{const days=deliveryDays(sk.inStock,loc,proc);est.innerHTML=`<b>${days} days</b> — by <b>${addDays(days)}</b>${sk.inStock?"":` <span style="color:var(--muted)">(incl. ~${proc}-day sourcing)</span>`}`;};
  showEst("city");
  $("#locPick").addEventListener("click",e=>{const b=e.target.closest("[data-loc]");if(!b)return;$$("#locPick button").forEach(x=>x.setAttribute("aria-pressed",x===b));showEst(b.dataset.loc);});
 }
@@ -898,8 +902,9 @@ function openPaymentStep(addr){
  const items=ids.map(id=>{const p=byId(id);return{id,name:p.name,price:p.price,qty:cart[id]};});
  const sub=subtotal(),ship=sub>=FREE_SHIP_OVER?0:SHIP_FLAT,tot=sub+ship;
  const tier=locTier(addr.city,addr.state);
- const anyMTO=ids.some(id=>!stockOf(byId(id)).inStock);
- const days=(anyMTO?LEADTIME.procureDays:0)+(LEADTIME.deliver[tier]??LEADTIME.deliver.other);
+ const mtoLeads=ids.filter(id=>!stockOf(byId(id)).inStock).map(id=>procureDaysOf(byId(id)));
+ const anyMTO=mtoLeads.length>0;
+ const days=(anyMTO?Math.max(...mtoLeads):0)+(LEADTIME.deliver[tier]??LEADTIME.deliver.other);
  const oid="ORD-"+Date.now().toString().slice(-6);
  const tierLabel=tier==="city"?"within "+STORE_CITY:tier==="state"?"within "+STORE_STATE:"out of state";
  const ctx={addr,items,tot,tier,days,oid};
@@ -1240,7 +1245,7 @@ function renderAdminPanel(revenue){
    <p class="formnote" style="margin-top:10px">Edit stock here to update the live store instantly (saved on this device). For permanent records, update the Excel and commit. ${inventory.length?"":"<b>Tip:</b> load your ROBONEXA_Inventory.xlsx to see vendors and cost data."}</p>`;
   host.querySelector("#invBrowse").addEventListener("click",()=>host.querySelector("#invFile").click());
   host.querySelector("#invFile").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;try{const ab=await f.arrayBuffer();inventory=parseInvWorkbook(ab);applyInventoryToStock();renderAdmin();toast("Inventory loaded ("+inventory.length+" items)");}catch(_){toast("Could not read that file");}});
-  host.querySelector("#invExport").addEventListener("click",()=>exportText("stock.csv","products/stock.csv",["id,stock"].concat(rows.map(r=>r.sku+","+r.stock)).join("\n")));
+  host.querySelector("#invExport").addEventListener("click",()=>exportText("stock.csv","products/stock.csv",["id,stock,lead"].concat(rows.map(r=>r.sku+","+r.stock+","+(parseInt(r.lead,10)||LEADTIME.procureDays))).join("\n")));
   host.querySelectorAll(".invin").forEach(inp=>inp.addEventListener("change",()=>{const sku=inp.dataset.sku,f=inp.dataset.f;invOverride[sku]=invOverride[sku]||{};invOverride[sku][f]=parseInt(inp.value,10)||0;saveInvOv();applyInventoryToStock();renderAdmin();}));
  }
  else if(adminTab==="orders"){

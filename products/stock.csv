@@ -1,5 +1,5 @@
-id,stock
-ACT-J60,40
-BLDC-200,85
-LDR-32,0
-AMR-500,0
+id,stock,lead
+ACT-J60,40,15
+BLDC-200,85,15
+LDR-32,0,25
+AMR-500,0,20
