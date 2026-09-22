@@ -20,15 +20,15 @@ var STORE_STATE = "Maharashtra";
 /* ---- Public contact shown on the storefront (footer, contact section) ---- */
 var COMPANY = {
   tagline: "India's engineer-run robotics store — actuators, motors, drives, sensors and complete robots, with datasheets and real support.",
-  phone:   "+91 XXXXX XXXXX",              // shown & click-to-call in the footer
-  email:   "",                              // blank = uses ORDER_EMAIL above
-  address: "Pune, Maharashtra · India"      // one-line address in the footer
+  phone:   "+91 91919 19191",              // shown & click-to-call in the footer
+  email:   "onlyshopes@gmail.com",                              // blank = uses ORDER_EMAIL above
+  address: "Nigdi, Pune, Maharashtra · India - 411044"      // one-line address in the footer
 };
 
 /* ---- Stock & delivery lead times ---- */
 var LEADTIME       = { procureDays: 20, deliver: { city: 2, state: 3, other: 5 } };
-var FREE_SHIP_OVER = 25000;   // free shipping over this amount (INR)
-var SHIP_FLAT      = 499;      // flat shipping below that (INR)
+var FREE_SHIP_OVER = 5000;   // free shipping over this amount (INR)
+var SHIP_FLAT      = 199;      // flat shipping below that (INR)
 var INVENTORY_FILE = "ROBONEXA_Inventory.xlsx";
 
 /* ---- UPI payment (your own QR, no fees) ---- */
