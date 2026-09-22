@@ -1,0 +1,44 @@
+{
+  "id": "MEC-100",
+  "cat": "kits",
+  "icon": "wheel",
+  "brand": "ROBONEXA",
+  "name": "Mecanum Wheel Set (4 x 100 mm)",
+  "price": 5400,
+  "mrp": 6800,
+  "stock": 70,
+  "country": "India",
+  "warranty": "1 year manufacturer warranty against defects.",
+  "desc": "Set of four 100 mm mecanum wheels (2 left, 2 right) with hubs for omnidirectional drive.",
+  "key": [
+    "100 mm",
+    "4 pcs",
+    "20 kg"
+  ],
+  "highlights": [
+    "Omnidirectional movement",
+    "20 kg load per wheel",
+    "Polyurethane rollers",
+    "Aluminium hubs, 6 mm bore"
+  ],
+  "specs": {
+    "Diameter": "100 mm",
+    "Quantity": "4 (2L + 2R)",
+    "Load each": "20 kg",
+    "Rollers": "Polyurethane",
+    "Hub": "6 mm bore + coupling",
+    "Material": "Aluminium",
+    "Weight": "1.8 kg / set"
+  },
+  "docs": [
+    {
+      "t": "Mounting guide",
+      "s": "PDF",
+      "file": ""
+    }
+  ],
+  "software": [],
+  "qa": [],
+  "images": [],
+  "videos": []
+}

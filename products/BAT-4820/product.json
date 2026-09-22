@@ -1,0 +1,49 @@
+{
+  "id": "BAT-4820",
+  "cat": "power",
+  "icon": "battery",
+  "brand": "ROBONEXA",
+  "name": "48 V 20 Ah LiFePO4 Battery Pack",
+  "price": 28000,
+  "mrp": 0,
+  "stock": 22,
+  "country": "India",
+  "warranty": "18 months warranty. Ships by road (no air).",
+  "desc": "48 V LiFePO4 pack with integrated 60 A BMS and CAN telemetry.",
+  "key": [
+    "48 V",
+    "20 Ah",
+    "BMS"
+  ],
+  "highlights": [
+    "960 Wh, >2000 cycles",
+    "Integrated 60 A BMS",
+    "CAN telemetry",
+    "XT90 connector"
+  ],
+  "specs": {
+    "Voltage": "48 V (16S)",
+    "Capacity": "20 Ah / 960 Wh",
+    "Chemistry": "LiFePO4",
+    "BMS": "Integrated, 60 A",
+    "Cycles": ">2000",
+    "Connector": "XT90 / CAN",
+    "Weight": "9.5 kg"
+  },
+  "docs": [
+    {
+      "t": "Datasheet & MSDS",
+      "s": "PDF",
+      "file": ""
+    }
+  ],
+  "software": [],
+  "qa": [
+    {
+      "q": "Air shipping?",
+      "a": "No - lithium packs ship by surface transport only."
+    }
+  ],
+  "images": [],
+  "videos": []
+}

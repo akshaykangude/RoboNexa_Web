@@ -1,19 +1,26 @@
 {
   "id": "ACT-J60",
-  "name": "QDD Joint Actuator ACT-J60",
-  "brand": "ROBONEXA",
-  "category": "actuators",
+  "cat": "actuators",
   "icon": "actuator",
+  "brand": "ROBONEXA",
+  "name": "QDD Joint Actuator ACT-J60",
   "price": 18500,
   "mrp": 22000,
   "stock": 40,
   "country": "India",
-  "images": [],
-  "videos": [],
-  "desc": "Quasi-direct-drive actuator with integrated driver and encoder for legged and dynamic robots.",
   "warranty": "1 year manufacturer warranty against defects.",
-  "key": ["60 Nm", "48 V", "CAN FD"],
-  "highlights": ["60 Nm peak torque", "Integrated 17-bit dual encoder", "Torque/velocity/position control", "1 kHz FOC over CAN FD"],
+  "desc": "Quasi-direct-drive actuator with integrated driver and encoder for legged and dynamic robots.",
+  "key": [
+    "60 Nm",
+    "48 V",
+    "CAN FD"
+  ],
+  "highlights": [
+    "60 Nm peak torque",
+    "Integrated 17-bit dual encoder",
+    "Torque/velocity/position control",
+    "1 kHz FOC over CAN FD"
+  ],
   "specs": {
     "Peak torque": "60 Nm",
     "Rated torque": "20 Nm",
@@ -23,17 +30,34 @@
     "Encoder": "17-bit dual",
     "Interface": "CAN FD",
     "Protection": "IP54",
+    "Backdrivable": "Yes",
     "Weight": "640 g"
   },
   "docs": [
-    { "title": "Datasheet ACT-J60", "note": "PDF", "file": "" },
-    { "title": "CAD model (STEP)", "note": "STEP", "file": "" },
-    { "title": "Dimensions drawing", "note": "PDF", "file": "" }
+    {
+      "t": "Datasheet ACT-J60",
+      "s": "PDF",
+      "file": ""
+    },
+    {
+      "t": "CAN protocol reference",
+      "s": "PDF",
+      "file": ""
+    }
   ],
   "software": [
-    { "title": "Python control SDK", "note": "ZIP", "file": "" }
+    {
+      "t": "Python control lib",
+      "s": "pip",
+      "file": ""
+    }
   ],
   "qa": [
-    { "q": "Is the firmware open?", "a": "Register map and Python library are provided; firmware source under NDA." }
-  ]
+    {
+      "q": "Firmware open?",
+      "a": "Register map and Python library are provided; firmware source under NDA."
+    }
+  ],
+  "images": [],
+  "videos": []
 }

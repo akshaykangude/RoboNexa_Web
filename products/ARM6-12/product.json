@@ -1,0 +1,68 @@
+{
+  "id": "ARM6-12",
+  "cat": "robots",
+  "icon": "arm",
+  "brand": "ROBONEXA",
+  "name": "6-Axis Collaborative Arm ARM6-12",
+  "price": 690000,
+  "mrp": 749000,
+  "stock": 2,
+  "country": "India",
+  "warranty": "2 years warranty incl. joint modules.",
+  "desc": "Six-DOF collaborative robot arm for pick-and-place, machine tending and light assembly.",
+  "key": [
+    "12 kg",
+    "1300 mm",
+    "±0.03 mm"
+  ],
+  "highlights": [
+    "12 kg payload, 1300 mm reach",
+    "±0.03 mm repeatability",
+    "Safety-rated collaborative operation",
+    "MoveIt 2 / ROS 2 ready"
+  ],
+  "specs": {
+    "Payload": "12 kg",
+    "Reach": "1300 mm",
+    "Degrees of freedom": "6",
+    "Repeatability": "±0.03 mm",
+    "Joint torque (J1)": "180 Nm",
+    "TCP speed": "2.0 m/s",
+    "Controller": "EtherCAT, 1 kHz",
+    "Safety": "ISO/TS 15066",
+    "Protection": "IP54 (IP67 wrist)",
+    "Weight": "32 kg"
+  },
+  "docs": [
+    {
+      "t": "Datasheet ARM6-12",
+      "s": "PDF",
+      "file": ""
+    },
+    {
+      "t": "Programming guide",
+      "s": "PDF",
+      "file": ""
+    }
+  ],
+  "software": [
+    {
+      "t": "MoveIt 2 config",
+      "s": "github",
+      "file": ""
+    },
+    {
+      "t": "Teach pendant app",
+      "s": "v4.1",
+      "file": ""
+    }
+  ],
+  "qa": [
+    {
+      "q": "Is it truly collaborative?",
+      "a": "Yes, it meets ISO/TS 15066 with power & force limiting for human-adjacent work."
+    }
+  ],
+  "images": [],
+  "videos": []
+}

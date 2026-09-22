@@ -1,32 +1,52 @@
 {
   "id": "BLDC-200",
-  "name": "BLDC Servo Gearmotor BLDC-200",
-  "brand": "ROBONEXA",
-  "category": "actuators",
+  "cat": "actuators",
   "icon": "motor",
+  "brand": "ROBONEXA",
+  "name": "BLDC Servo Gearmotor BLDC-200",
   "price": 9800,
   "mrp": 12000,
   "stock": 85,
   "country": "India",
-  "images": [],
-  "videos": [],
-  "desc": "Brushless gearmotor with planetary reduction for wheels, conveyors and joints.",
   "warranty": "1 year manufacturer warranty against defects.",
-  "key": ["200 W", "3000 rpm", "20:1"],
-  "highlights": ["200 W brushless motor", "20:1 planetary gearbox", "Hall + 2500 PPR encoder", "IP65 sealed"],
+  "desc": "Brushless gearmotor with planetary reduction for wheels, conveyors and joints.",
+  "key": [
+    "200 W",
+    "3000 rpm",
+    "20:1"
+  ],
+  "highlights": [
+    "200 W brushless motor",
+    "20:1 planetary gearbox",
+    "Hall + 2500 PPR encoder",
+    "IP65 sealed"
+  ],
   "specs": {
     "Power": "200 W",
     "Voltage": "48 V DC",
     "Speed": "3000 rpm (motor)",
-    "Gearbox": "20:1 planetary",
+    "Gearbox": "20:1",
     "Torque": "12 Nm cont / 30 Nm peak",
     "Feedback": "Hall + 2500 PPR",
+    "Efficiency": ">=88%",
+    "Protocol": "CANopen / EtherCAT",
     "Protection": "IP65",
     "Weight": "1.9 kg"
   },
   "docs": [
-    { "title": "Datasheet BLDC-200", "note": "PDF", "file": "" }
+    {
+      "t": "Datasheet BLDC-200",
+      "s": "PDF",
+      "file": ""
+    }
   ],
   "software": [],
-  "qa": []
+  "qa": [
+    {
+      "q": "Brake option?",
+      "a": "Yes - optional 24 V holding brake, add at checkout notes."
+    }
+  ],
+  "images": [],
+  "videos": []
 }

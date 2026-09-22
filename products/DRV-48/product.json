@@ -1,0 +1,62 @@
+{
+  "id": "DRV-48",
+  "cat": "drives",
+  "icon": "drive",
+  "brand": "ROBONEXA",
+  "name": "FOC Servo Drive DRV-48",
+  "price": 14500,
+  "mrp": 16900,
+  "stock": 60,
+  "country": "China",
+  "warranty": "1 year warranty.",
+  "desc": "Field-oriented servo drive for BLDC/PMSM motors with dual-loop control and STO safety.",
+  "key": [
+    "48 V",
+    "30 A",
+    "EtherCAT"
+  ],
+  "highlights": [
+    "30 A continuous / 70 A peak",
+    "FOC current/vel/pos control",
+    "EtherCAT & CANopen",
+    "STO safety (SIL2)"
+  ],
+  "specs": {
+    "Supply": "24-60 V DC",
+    "Current": "30 A cont / 70 A peak",
+    "Control": "FOC",
+    "Fieldbus": "EtherCAT / CANopen",
+    "Feedback": "ABZ/Hall/BiSS-C/SSI",
+    "Loop rate": "20 kHz current",
+    "Safety": "STO (SIL2)",
+    "Protection": "IP20",
+    "Size": "98x62x28 mm"
+  },
+  "docs": [
+    {
+      "t": "Datasheet DRV-48",
+      "s": "PDF",
+      "file": ""
+    },
+    {
+      "t": "EtherCAT ESI file",
+      "s": "XML",
+      "file": ""
+    }
+  ],
+  "software": [
+    {
+      "t": "Tuning GUI",
+      "s": "Windows",
+      "file": ""
+    }
+  ],
+  "qa": [
+    {
+      "q": "Supported motors?",
+      "a": "Any 3-phase BLDC/PMSM with the listed feedback types."
+    }
+  ],
+  "images": [],
+  "videos": []
+}

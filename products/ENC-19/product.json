@@ -1,0 +1,46 @@
+{
+  "id": "ENC-19",
+  "cat": "sensors",
+  "icon": "encoder",
+  "brand": "ROBONEXA",
+  "name": "Absolute Encoder ENC-19 (19-bit)",
+  "price": 6200,
+  "mrp": 7500,
+  "stock": 150,
+  "country": "Germany",
+  "warranty": "1 year warranty.",
+  "desc": "High-resolution single-turn absolute encoder for precise joint feedback.",
+  "key": [
+    "19-bit",
+    "BiSS-C",
+    "IP67"
+  ],
+  "highlights": [
+    "19-bit single-turn resolution",
+    "BiSS-C / SSI interface",
+    "±0.02 deg accuracy",
+    "IP67, -40 to +100 C"
+  ],
+  "specs": {
+    "Resolution": "19-bit",
+    "Multi-turn": "Optional 12-bit",
+    "Interface": "BiSS-C / SSI",
+    "Accuracy": "±0.02 deg",
+    "Supply": "5 V DC",
+    "Max speed": "12,000 rpm",
+    "Bore": "8 mm hollow",
+    "Protection": "IP67",
+    "Weight": "95 g"
+  },
+  "docs": [
+    {
+      "t": "Datasheet ENC-19",
+      "s": "PDF",
+      "file": ""
+    }
+  ],
+  "software": [],
+  "qa": [],
+  "images": [],
+  "videos": []
+}

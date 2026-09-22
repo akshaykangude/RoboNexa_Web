@@ -1,37 +1,63 @@
 {
   "id": "LDR-32",
-  "name": "3D LiDAR LDR-32 (32-channel)",
-  "brand": "ROBONEXA",
-  "category": "sensors",
+  "cat": "sensors",
   "icon": "lidar",
+  "brand": "ROBONEXA",
+  "name": "3D LiDAR LDR-32 (32-channel)",
   "price": 185000,
   "mrp": 210000,
   "stock": 8,
   "country": "China",
-  "images": [],
-  "videos": [],
-  "desc": "32-channel spinning LiDAR for mapping, SLAM and obstacle detection.",
   "warranty": "1 year warranty.",
-  "key": ["32 ch", "120 m", "640k pts"],
-  "highlights": ["32 channels, 120 m range", "640,000 points/sec", "360°×40° field of view", "ROS 2 / PCL driver"],
+  "desc": "32-channel spinning LiDAR for mapping, SLAM and obstacle detection.",
+  "key": [
+    "32 ch",
+    "120 m",
+    "640k pts"
+  ],
+  "highlights": [
+    "32 channels, 120 m range",
+    "640,000 points/sec",
+    "360x40 field of view",
+    "ROS 2 / PCL driver"
+  ],
   "specs": {
     "Channels": "32",
     "Range": "120 m @ 80%",
     "Accuracy": "±2 cm",
     "Points/s": "640,000",
-    "FOV": "360°×40°",
+    "FOV": "360x40",
+    "Rotation": "5-20 Hz",
     "Wavelength": "905 nm (Class 1)",
     "Interface": "Ethernet UDP",
+    "Power": "9 W, 12 V",
     "Protection": "IP67"
   },
   "docs": [
-    { "title": "Datasheet LDR-32", "note": "PDF", "file": "" },
-    { "title": "Mechanical dimensions", "note": "PDF", "file": "" }
+    {
+      "t": "Datasheet LDR-32",
+      "s": "PDF",
+      "file": ""
+    },
+    {
+      "t": "ROS 2 driver guide",
+      "s": "PDF",
+      "file": ""
+    }
   ],
   "software": [
-    { "title": "ROS 2 / PCL driver", "note": "github", "file": "" }
+    {
+      "t": "ROS 2 / PCL driver",
+      "s": "github",
+      "file": ""
+    }
   ],
   "qa": [
-    { "q": "Which SLAM stacks work?", "a": "Cartographer, LIO-SAM and RTAB-Map out of the box." }
-  ]
+    {
+      "q": "SLAM support?",
+      "a": "Works with Cartographer, LIO-SAM and RTAB-Map out of the box."
+    }
+  ],
+  "images": [],
+  "videos": []
 }

@@ -1,0 +1,50 @@
+{
+  "id": "USBCAN-FD",
+  "cat": "drives",
+  "icon": "cable",
+  "brand": "ROBONEXA",
+  "name": "USB-to-CAN FD Adapter",
+  "price": 3900,
+  "mrp": 4600,
+  "stock": 120,
+  "country": "China",
+  "warranty": "1 year warranty.",
+  "desc": "Isolated USB-C to CAN FD adapter with SocketCAN and Python support.",
+  "key": [
+    "CAN FD",
+    "5 Mbit",
+    "USB-C"
+  ],
+  "highlights": [
+    "CAN FD up to 5 Mbit/s",
+    "2500 V isolation",
+    "SocketCAN + Python API",
+    "Linux & Windows"
+  ],
+  "specs": {
+    "Channels": "1 x CAN FD",
+    "Rate": "up to 5 Mbit/s",
+    "Host": "USB-C",
+    "Isolation": "2500 V",
+    "API": "SocketCAN / Python",
+    "OS": "Linux / Windows",
+    "Weight": "70 g"
+  },
+  "docs": [
+    {
+      "t": "Quick start",
+      "s": "PDF",
+      "file": ""
+    }
+  ],
+  "software": [
+    {
+      "t": "Driver + examples",
+      "s": "github",
+      "file": ""
+    }
+  ],
+  "qa": [],
+  "images": [],
+  "videos": []
+}

@@ -1,0 +1,77 @@
+{
+  "id": "AMR-500",
+  "cat": "robots",
+  "icon": "amr",
+  "brand": "ROBONEXA",
+  "name": "Autonomous Mobile Robot AMR-500",
+  "price": 450000,
+  "mrp": 499000,
+  "stock": 3,
+  "country": "India",
+  "warranty": "2 years comprehensive warranty. On-site support in first year.",
+  "desc": "Differential-drive AMR for indoor material transport with autonomous SLAM navigation and auto-docking.",
+  "key": [
+    "500 kg",
+    "1.5 m/s",
+    "Nav2"
+  ],
+  "highlights": [
+    "Carries up to 500 kg",
+    "Autonomous SLAM / Nav2 navigation",
+    "8-hour battery, auto-docking",
+    "Dual safety scanners + e-stop"
+  ],
+  "specs": {
+    "Payload": "500 kg",
+    "Max speed": "1.5 m/s",
+    "Navigation": "SLAM / Nav2",
+    "LiDAR range": "25 m, 360°",
+    "Battery": "48 V LiFePO4, 8 h",
+    "Charging": "Auto-dock, 2 h",
+    "Positioning": "±10 mm",
+    "Protection": "IP54",
+    "Comms": "Wi-Fi / 4G, REST + ROS 2",
+    "Dimensions": "1050x720x340 mm"
+  },
+  "docs": [
+    {
+      "t": "Datasheet AMR-500",
+      "s": "PDF",
+      "file": ""
+    },
+    {
+      "t": "User & safety manual",
+      "s": "PDF",
+      "file": ""
+    },
+    {
+      "t": "CAD model (STEP)",
+      "s": "ZIP",
+      "file": ""
+    }
+  ],
+  "software": [
+    {
+      "t": "ROS 2 driver package",
+      "s": "github",
+      "file": ""
+    },
+    {
+      "t": "Fleet manager (Web)",
+      "s": "v2.3",
+      "file": ""
+    }
+  ],
+  "qa": [
+    {
+      "q": "Can it integrate with my WMS?",
+      "a": "Yes - REST API and ROS 2 topics are exposed for WMS/MES integration."
+    },
+    {
+      "q": "Outdoor use?",
+      "a": "IP54 is rated for indoor/semi-covered areas; not for rain."
+    }
+  ],
+  "images": [],
+  "videos": []
+}

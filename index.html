@@ -147,6 +147,8 @@ header.site{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;backgrou
 .pact{display:flex;gap:7px;margin-top:auto;padding-top:4px}
 .addbtn{flex:1;background:var(--buy);color:#fff;font-weight:600;font-size:13px;border:none;border-radius:9px;padding:10px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .addbtn:hover{background:var(--buy-ink)}.addbtn.added{background:var(--save)}
+.addbtn.pre{background:var(--warn)}.addbtn.pre:hover{filter:brightness(1.05)}
+.pretag{font-size:10px;font-weight:700;color:var(--warn);border:1px solid var(--warn);border-radius:5px;padding:1px 6px;margin-left:6px}
 .viewbtn{background:var(--surface);color:var(--ink-2);border:1px solid var(--line-2);border-radius:9px;padding:10px 12px;font-size:12px;font-weight:600}
 .viewbtn:hover{border-color:var(--brand);color:var(--brand)}
 .empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:60px 0}
@@ -320,6 +322,7 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 .badge2{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
 .badge2.placed{background:var(--brand-soft);color:var(--brand-ink)}
 .badge2.delivered{background:color-mix(in srgb,var(--save) 18%,transparent);color:var(--save)}
+.badge2.preorder{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
 .invrow.iout td{background:var(--buy-soft)}
 .invrow.ilow td{background:color-mix(in srgb,var(--warn) 14%,transparent)}
 .istat{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
@@ -691,9 +694,11 @@ function cardHTML(p){const d=discount(p),r=ratingOf(p.id);
    <div class="rating"><span class="stars">${starsHTML(r.avg)}</span>${r.n?r.avg.toFixed(1)+" · "+r.n+" review"+(r.n>1?"s":""):"No reviews yet"}</div>
    <div class="keyspec">${(p.key||[]).map(k=>`<span>${esc(k)}</span>`).join("")}</div>
    <div class="priceline"><span class="price">${CUR(p.price)}</span>${p.mrp?`<span class="mrp">${CUR(p.mrp)}</span>`:""}</div>
-   <div class="stock${stockOf(p).inStock?"":" out"}">${stockOf(p).inStock?"In stock":"Made to order · ~"+LEADTIME.procureDays+" days"}</div>
+   <div class="stock${stockOf(p).inStock?"":" out"}">${stockOf(p).inStock?"In stock":"Pre-order · ships in ~"+LEADTIME.procureDays+" days"}</div>
    <div class="pact">
-     <button class="addbtn" data-add="${p.id}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button>
+     ${stockOf(p).inStock
+       ? `<button class="addbtn" data-add="${p.id}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add</button>`
+       : `<button class="addbtn pre" data-add="${p.id}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Pre-order</button>`}
      <button class="viewbtn" data-view="${p.id}">Details</button>
    </div>
   </div></article>`;}
@@ -744,8 +749,8 @@ function renderDetail(p){
      <div class="tax">Incl. of taxes where shown · ${stockOf(p).inStock?`<span style="color:var(--save);font-weight:600">In stock (${stockOf(p).qty})</span>`:`<span style="color:var(--warn);font-weight:600">Made to order — ships in ~${LEADTIME.procureDays} days</span>`}</div>
      <div class="buyrow">
        <div class="qty"><button data-dq="1">−</button><span id="dQty">1</span><button data-dq="2">+</button></div>
-       <button class="btn btn-buy" id="dAdd">Add to cart</button>
-       <button class="btn btn-grad" id="dBuy">Buy now</button>
+       <button class="btn ${stockOf(p).inStock?"btn-buy":""}" id="dAdd" ${stockOf(p).inStock?"":'style="background:var(--warn);color:#fff"'}>${stockOf(p).inStock?"Add to cart":"Pre-order"}</button>
+       <button class="btn btn-grad" id="dBuy">${stockOf(p).inStock?"Buy now":"Pre-order now"}</button>
      </div>
      <div class="deliver">
        <div style="font-size:12px;color:var(--muted);margin-bottom:7px">📦 Estimated delivery — where are you?</div>
@@ -832,11 +837,15 @@ async function emailjsSend(params){
 /* unified sender: Google Apps Script webhook first, else EmailJS, else false (demo) */
 async function mailSend(to,subject,message,code){
  if(MAIL_WEBHOOK){
-  try{const r=await fetch(MAIL_WEBHOOK,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({to,subject,message,code:code||""})});
-   try{const j=await r.json();return !!(j&&j.ok);}catch(_){return r.ok;}}catch(_){return false;}
+  // fire-and-forget: the Apps Script sends server-side. no-cors avoids the browser
+  // hanging/erroring on the cross-origin response, so the UI never blocks.
+  try{fetch(MAIL_WEBHOOK,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({to,subject,message,code:code||""})});}catch(_){}
+  return true;
  }
  return emailjsSend({to_email:to,subject,message,code:code||""});
 }
+/* password rule: 8+ chars, at least one letter, one number, one special character */
+const passOk=p=>/^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/.test(String(p||""));
 /* ---- which delivery tier does this address fall in? ---- */
 function locTier(city,state){
  if((city||"").trim().toLowerCase()===STORE_CITY.toLowerCase()) return "city";
@@ -853,7 +862,7 @@ function updateCart(){
  refreshCartBadge();
  const ids=Object.keys(cart).filter(byId),items=$("#cartItems"),foot=$("#cartFoot");
  if(!ids.length){items.innerHTML=`<div class="drawer-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.3a1.5 1.5 0 0 0 1.5 1.2h8.2a1.5 1.5 0 0 0 1.5-1.2L22 7H6"/></svg><p>Your cart is empty.</p></div>`;foot.innerHTML="";return;}
- items.innerHTML=ids.map(id=>{const p=byId(id),q=cart[id];return `<div class="citem"><div class="thumb">${media(p)}</div><div><h4>${esc(p.name)}</h4><div class="cp">${CUR(p.price)} each</div><div class="qty"><button data-dec="${id}">−</button><span>${q}</span><button data-inc="${id}">+</button></div></div><div class="line-r"><span class="lprice">${CUR(p.price*q)}</span><button class="rm" data-rm="${id}">Remove</button></div></div>`;}).join("");
+ items.innerHTML=ids.map(id=>{const p=byId(id),q=cart[id];const pre=!stockOf(p).inStock;return `<div class="citem"><div class="thumb">${media(p)}</div><div><h4>${esc(p.name)}${pre?'<span class="pretag">PRE-ORDER</span>':''}</h4><div class="cp">${CUR(p.price)} each</div><div class="qty"><button data-dec="${id}">−</button><span>${q}</span><button data-inc="${id}">+</button></div></div><div class="line-r"><span class="lprice">${CUR(p.price*q)}</span><button class="rm" data-rm="${id}">Remove</button></div></div>`;}).join("");
  const sub=subtotal(),ship=sub>=FREE_SHIP_OVER?0:SHIP_FLAT,tot=sub+ship;
  foot.innerHTML=`<div class="row"><span>Subtotal</span><span class="mono">${CUR(sub)}</span></div><div class="row"><span>Shipping</span><span class="mono">${ship?CUR(ship):"FREE"}</span></div><div class="row tot"><span>Total</span><span>${CUR(tot)}</span></div><p class="ship">${sub>=FREE_SHIP_OVER?"🎉 You qualify for free shipping":`Add ${CUR(FREE_SHIP_OVER-sub)} more for free shipping`}</p><button class="btn btn-buy big" id="checkoutBtn">${session?"Place order":"Login & checkout"}</button><p class="ship" style="text-align:center;margin:10px 0 0">Online payment (UPI/card) — setup pending. Order also emailed to us.</p>`;
 }
@@ -906,9 +915,11 @@ function openPaymentStep(addr){
 }
 function placeOrder(ctx,method,ref){
  const {addr,items,tot,tier,days,oid}=ctx;
- orders.push({id:oid,email:session,items,total:tot,status:"placed",date:Date.now(),address:addr,tier,etaDays:days,method,paymentRef:ref||""});saveO();
- mailSend(ORDER_EMAIL,"New order "+oid+" — "+CUR(tot),`${items.map(i=>i.name+" ×"+i.qty).join(", ")}\nTotal ${CUR(tot)}\nPayment: ${method}${ref?" ("+ref+")":""}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days`,"");
- cart={};saveC();updateCart();closeModal();toast("Order placed! ("+oid+")");
+ const items2=items.map(i=>({...i,preorder:!stockOf(byId(i.id)).inStock}));
+ const isPre=items2.some(i=>i.preorder);
+ orders.push({id:oid,email:session,items:items2,total:tot,status:isPre?"preorder":"placed",date:Date.now(),address:addr,tier,etaDays:days,method,paymentRef:ref||"",preorder:isPre});saveO();
+ mailSend(ORDER_EMAIL,(isPre?"PRE-ORDER ":"New order ")+oid+" — "+CUR(tot),`${items2.map(i=>i.name+" ×"+i.qty+(i.preorder?" (PRE-ORDER)":"")).join(", ")}\nTotal ${CUR(tot)}\nPayment: ${method}${ref?" ("+ref+")":""}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days${isPre?"\n\n** Contains pre-order items — source & confirm dispatch. **":""}`,"");
+ cart={};saveC();updateCart();closeModal();toast(isPre?"Pre-order placed! ("+oid+")":"Order placed! ("+oid+")");
 }
 function showUpiPay(ctx){
  const {tot,oid}=ctx;
@@ -961,18 +972,21 @@ window.openAuth=function(msg){
   <form id="authForm">
    <div class="field" id="nameField" hidden><label>Full name <span class="req">*</span></label><input id="au_name" autocomplete="name"></div>
    <div class="field"><label>Email <span class="req">*</span></label><input id="au_email" type="email" autocomplete="email" required></div>
-   <div class="field"><label>Password <span class="req">*</span></label><input id="au_pass" type="password" autocomplete="current-password" required></div>
+   <div class="field" id="passField"><label>Password <span class="req">*</span></label><input id="au_pass" type="password" autocomplete="current-password"></div>
    <div class="err" id="au_err"></div>
    <button class="btn btn-grad big" type="submit" id="au_submit">Log in</button>
   </form>
   <div style="text-align:center;margin-top:12px" id="forgotWrap"><button class="linkbtn" id="forgotBtn" type="button">Forgot password?</button></div>`);
- const setMode=m=>{mode=m;$$("#modalBody .tabs-auth button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===m));$("#nameField").hidden=m!=="signup";$("#forgotWrap").hidden=m==="signup";$("#au_submit").textContent=m==="signup"?"Create account":"Log in";$("#au_err").textContent="";};
+ const setMode=m=>{mode=m;$$("#modalBody .tabs-auth button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.m===m));$("#nameField").hidden=m!=="signup";$("#passField").hidden=m==="signup";$("#forgotWrap").hidden=m==="signup";$("#au_submit").textContent=m==="signup"?"Verify email →":"Log in";$("#au_err").textContent="";};
  $$("#modalBody .tabs-auth button").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.m)));
  $("#forgotBtn").addEventListener("click",()=>openForgot($("#au_email").value.trim().toLowerCase()));
- $("#authForm").addEventListener("submit",e=>{e.preventDefault();const email=$("#au_email").value.trim().toLowerCase(),pass=$("#au_pass").value,err=$("#au_err");
-  if(mode==="signup"){const name=$("#au_name").value.trim();if(!name){err.textContent="Please enter your name.";return;}if(users[email]){err.textContent="An account with this email already exists. Try logging in.";return;}if(pass.length<4){err.textContent="Password must be at least 4 characters.";return;}
-   startSignupVerify(name,email,pass); return;}          // verify email before creating
-  else{if(!users[email]||users[email].pass!==pass){err.textContent="Wrong email or password.";return;}session=email;DB.set("session",email);toast("Welcome back, "+users[email].name+"!");}
+ $("#authForm").addEventListener("submit",e=>{e.preventDefault();const email=$("#au_email").value.trim().toLowerCase(),err=$("#au_err");
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){err.textContent="Please enter a valid email.";return;}
+  if(mode==="signup"){const name=$("#au_name").value.trim();if(!name){err.textContent="Please enter your name.";return;}if(users[email]){err.textContent="An account with this email already exists. Try logging in.";return;}
+   startSignupVerify(name,email); return;}            // email -> OTP -> then set password
+  const pass=$("#au_pass").value;
+  if(!users[email]||users[email].pass!==pass){err.textContent="Wrong email or password.";return;}
+  session=email;DB.set("session",email);toast("Welcome back, "+users[email].name+"!");
   closeModal();refreshAccount();
  });
 };
@@ -981,11 +995,10 @@ function openAdminLogin(){
  openModal("Master / Admin login",`
   <p class="formnote" style="margin-bottom:14px">Step 1 of 2 — enter your admin password. A verification code will then be emailed to the owner's account.</p>
   <form id="admForm"><div class="field"><label>Admin password <span class="req">*</span></label><input id="adm_pass" type="password" autocomplete="off"></div><div class="err" id="adm_err"></div><button class="btn btn-dark big" type="submit">Continue</button></form>`);
- $("#admForm").addEventListener("submit",async e=>{e.preventDefault();
+ $("#admForm").addEventListener("submit",e=>{e.preventDefault();
   if($("#adm_pass").value!==ADMIN_PASS){$("#adm_err").textContent="Incorrect admin password.";return;}
   const code=genOTP();adminOtp={code,exp:Date.now()+10*60000};
-  const btn=$("#admForm").querySelector("button");btn.textContent="Sending code…";btn.disabled=true;
-  await mailSend(ADMIN_2FA_EMAIL,"ROBONEXA admin login code","A login to your ROBONEXA admin dashboard was requested. Use the code below to continue. If this wasn't you, please change your admin password.",code);
+  mailSend(ADMIN_2FA_EMAIL,"ROBONEXA admin login code","A login to your ROBONEXA admin dashboard was requested. Use the code below to continue. If this wasn't you, please change your admin password.",code);
   adminOtpStep();
  });
 }
@@ -1015,29 +1028,31 @@ function openForgot(pref){
    <div class="err" id="fp_err"></div>
    <button class="btn btn-grad big" type="submit">Send code</button>
   </form>`);
- $("#fpForm1").addEventListener("submit",async e=>{e.preventDefault();
+ $("#fpForm1").addEventListener("submit",e=>{e.preventDefault();
   const email=$("#fp_email").value.trim().toLowerCase();
   if(!users[email]){$("#fp_err").textContent="No account is registered with this email.";return;}
   const code=genOTP();otpState={email,code,exp:Date.now()+10*60000};
-  const btn=$("#fpForm1").querySelector("button");btn.textContent="Sending…";btn.disabled=true;
-  const sent=await mailSend(email,"Your ROBONEXA password reset code","We received a request to reset your ROBONEXA password. Use the code below to continue. If this wasn't you, please ignore this email.",code);
-  showOtpStep(email,code,sent);
+  mailSend(email,"Your ROBONEXA password reset code","We received a request to reset your ROBONEXA password. Use the code below to continue. If this wasn't you, please ignore this email.",code);
+  showOtpStep(email,code,true);
  });
 }
 function showOtpStep(email,code,sent){
  openModal("Enter verification code",`
   ${otpBanner(email,code,sent,"reset")}
   <form id="fpForm2">
-   <div class="field"><label>6-digit code <span class="req">*</span></label><input id="fp_code" inputmode="numeric" maxlength="6" placeholder="——————"></div>
-   <div class="field"><label>New password <span class="req">*</span></label><input id="fp_new" type="password"></div>
+   <div class="field"><label>6-digit code <span class="req">*</span></label><input id="fp_code" inputmode="numeric" maxlength="6" placeholder="——————" autocomplete="one-time-code"></div>
+   <div class="field"><label>New password <span class="req">*</span></label><input id="fp_new" type="password" autocomplete="new-password"></div>
+   <div class="field"><label>Confirm new password <span class="req">*</span></label><input id="fp_new2" type="password" autocomplete="new-password"></div>
+   <p class="formnote">At least 8 characters, including a letter, a number and a special character.</p>
    <div class="err" id="fp_err2"></div>
    <button class="btn btn-grad big" type="submit">Verify &amp; set new password</button>
   </form>`);
  $("#fpForm2").addEventListener("submit",e=>{e.preventDefault();
-  const c=$("#fp_code").value.trim(),np=$("#fp_new").value;
+  const c=$("#fp_code").value.trim(),np=$("#fp_new").value,np2=$("#fp_new2").value;
   if(!otpState||Date.now()>otpState.exp){$("#fp_err2").textContent="Code expired — request a new one.";return;}
   if(c!==otpState.code){$("#fp_err2").textContent="Incorrect code. Please check and retry.";return;}
-  if(np.length<4){$("#fp_err2").textContent="Password must be at least 4 characters.";return;}
+  if(!passOk(np)){$("#fp_err2").textContent="Password needs 8+ characters with a letter, a number and a special character.";return;}
+  if(np!==np2){$("#fp_err2").textContent="Passwords do not match.";return;}
   users[otpState.email].pass=np;saveU();otpState=null;
   closeModal();toast("Password updated — you can log in now.");
   if(isAdmin)renderAdmin();
@@ -1045,25 +1060,44 @@ function showOtpStep(email,code,sent){
 }
 /* ---- email verification on sign up (demo; live = email backend) ---- */
 let pendingSignup=null;
-async function startSignupVerify(name,email,pass){
- const code=genOTP();pendingSignup={name,email,pass,code,exp:Date.now()+10*60000};
- openModal("Verify your email",`<p class="formnote" style="padding:10px 0">Sending a verification code to <b>${esc(email)}</b>…</p>`);
- const sent=await mailSend(email,"Your ROBONEXA verification code","Thank you for signing up at ROBONEXA. Please use the code below to verify your email address:",code);
+/* Step 1: email a code, then show the OTP entry window immediately (email sends in background) */
+function startSignupVerify(name,email){
+ const code=genOTP();pendingSignup={name,email,code,exp:Date.now()+10*60000};
+ mailSend(email,"Your ROBONEXA verification code","Thank you for signing up at ROBONEXA. Please use the code below to verify your email address:",code);
  openModal("Verify your email",`
-  ${otpBanner(email,code,sent,"verification")}
+  ${otpBanner(email,code,true,"verification")}
   <form id="svForm">
-   <div class="field"><label>Enter the 6-digit code <span class="req">*</span></label><input id="sv_code" inputmode="numeric" maxlength="6" placeholder="——————"></div>
+   <div class="field"><label>Enter the 6-digit code <span class="req">*</span></label><input id="sv_code" inputmode="numeric" maxlength="6" placeholder="——————" autocomplete="one-time-code"></div>
    <div class="err" id="sv_err"></div>
-   <button class="btn btn-grad big" type="submit">Verify &amp; create account</button>
+   <button class="btn btn-grad big" type="submit">Verify email</button>
+   <div style="text-align:center;margin-top:10px"><button class="linkbtn" type="button" id="sv_resend">Didn't get it? Resend code</button></div>
   </form>`);
+ $("#sv_resend").addEventListener("click",()=>{pendingSignup.code=genOTP();pendingSignup.exp=Date.now()+10*60000;mailSend(email,"Your ROBONEXA verification code","Your new verification code is below.",pendingSignup.code);toast("Code re-sent");});
  $("#svForm").addEventListener("submit",e=>{e.preventDefault();
   const c=$("#sv_code").value.trim();
   if(!pendingSignup||Date.now()>pendingSignup.exp){$("#sv_err").textContent="Code expired — please sign up again.";return;}
   if(c!==pendingSignup.code){$("#sv_err").textContent="Incorrect code. Check your email and retry.";return;}
-  const {name,email,pass}=pendingSignup;
-  users[email]={name,email,pass,verified:true};saveU();pendingSignup=null;
+  openPasswordSet(pendingSignup.name,pendingSignup.email);   // Step 2: set password
+ });
+}
+/* Step 2: only after the email is verified, set a password (typed twice, strong) */
+function openPasswordSet(name,email){
+ openModal("Set your password",`
+  <p class="formnote" style="margin-bottom:12px">Email verified ✓ &nbsp;Create a password for <b>${esc(email)}</b>.</p>
+  <form id="npForm">
+   <div class="field"><label>Password <span class="req">*</span></label><input id="np1" type="password" autocomplete="new-password"></div>
+   <div class="field"><label>Confirm password <span class="req">*</span></label><input id="np2" type="password" autocomplete="new-password"></div>
+   <p class="formnote">At least <b>8 characters</b>, including a letter, a number and a special character.</p>
+   <div class="err" id="np_err"></div>
+   <button class="btn btn-grad big" type="submit">Create account</button>
+  </form>`);
+ $("#npForm").addEventListener("submit",e=>{e.preventDefault();
+  const p1=$("#np1").value,p2=$("#np2").value;
+  if(!passOk(p1)){$("#np_err").textContent="Password needs 8+ characters with a letter, a number and a special character.";return;}
+  if(p1!==p2){$("#np_err").textContent="Passwords do not match.";return;}
+  users[email]={name,email,pass:p1,verified:true};saveU();pendingSignup=null;
   session=email;DB.set("session",email);
-  closeModal();refreshAccount();toast("Email verified — welcome, "+name+"!");
+  closeModal();refreshAccount();toast("Welcome, "+name+"! Your account is ready.");
  });
 }
 /* ---- admin-triggered password reset (no OTP) ---- */
@@ -1211,8 +1245,8 @@ function renderAdminPanel(revenue){
  }
  else if(adminTab==="orders"){
   host.innerHTML=orders.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th style="text-align:right">Action</th></tr></thead><tbody>
-   ${orders.slice().reverse().map(o=>`<tr><td class="mono">${o.id}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}</div></td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td style="font-size:12px">${o.items.map(i=>esc(i.name)+" ×"+i.qty).join("<br>")}</td><td class="mono">${CUR(o.total)}</td><td><span class="badge2 ${o.status}">${o.status}</span></td><td style="text-align:right">${o.status==="placed"?`<button class="btn btn-brand btn-sm" data-deliver="${o.id}">Mark delivered</button>`:"✓"}</td></tr>`).join("")}
-   </tbody></table></div><p class="formnote" style="margin-top:12px">Marking an order <b>delivered</b> lets that customer write a verified review.</p>`:'<p style="color:var(--muted);padding:30px 0">No orders yet.</p>';
+   ${orders.slice().reverse().map(o=>`<tr><td class="mono">${o.id}${o.preorder?'<span class="pretag" style="margin-left:0">PRE-ORDER</span>':''}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}${o.etaDays?" · ETA "+o.etaDays+"d":""}</div></td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td style="font-size:12px">${o.items.map(i=>esc(i.name)+" ×"+i.qty+(i.preorder?' <span style="color:var(--warn)">(pre-order)</span>':"")).join("<br>")}</td><td class="mono">${CUR(o.total)}</td><td><span class="badge2 ${o.status==="delivered"?"delivered":o.preorder?"preorder":"placed"}">${o.status}</span></td><td style="text-align:right">${o.status!=="delivered"?`<button class="btn btn-brand btn-sm" data-deliver="${o.id}">Mark delivered</button>`:"✓"}</td></tr>`).join("")}
+   </tbody></table></div><p class="formnote" style="margin-top:12px"><b>Pre-order</b> rows contain out-of-stock items — source them, then mark <b>delivered</b> once dispatched (which also lets the customer review).</p>`:'<p style="color:var(--muted);padding:30px 0">No orders yet.</p>';
   host.querySelectorAll("[data-deliver]").forEach(b=>b.addEventListener("click",()=>{const o=orders.find(x=>x.id===b.dataset.deliver);if(o){o.status="delivered";saveO();toast("Marked delivered");renderAdmin();}}));
  }
  else if(adminTab==="customers"){
