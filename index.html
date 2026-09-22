@@ -320,6 +320,12 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 .badge2{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
 .badge2.placed{background:var(--brand-soft);color:var(--brand-ink)}
 .badge2.delivered{background:color-mix(in srgb,var(--save) 18%,transparent);color:var(--save)}
+.invrow.iout td{background:var(--buy-soft)}
+.invrow.ilow td{background:color-mix(in srgb,var(--warn) 14%,transparent)}
+.istat{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
+.istat.iout{background:var(--buy);color:#fff}
+.istat.ilow{background:var(--warn);color:#fff}
+.istat.iok{background:color-mix(in srgb,var(--save) 18%,transparent);color:var(--save)}
 .form2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .form2 .full{grid-column:1/-1}
 .dyn-row{display:flex;gap:8px;margin-bottom:8px}
@@ -456,6 +462,8 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg><span id="toastMsg">Done</span></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 /* ================= CONFIG ================= */
 const STORE="ROBONEXA";
@@ -468,6 +476,14 @@ const GH_BRANCH="main";                  // <-- usually "main"
 // ---- Stock & delivery lead times (used when an item is out of stock / not in the sheet) ----
 const LEADTIME={ procureDays:20, deliver:{ city:2, state:3, other:5 } };
 // Stock is read from products/stock.csv  (columns: id,stock)  — edit it in Excel.
+const INVENTORY_FILE="ROBONEXA_Inventory.xlsx"; // admin Inventory tab reads this (repo or your computer)
+// ---- We operate from here (used to work out the delivery time tier) ----
+const STORE_CITY="Pune", STORE_STATE="Maharashtra";
+// ---- UPI payment ----
+const UPI_VPA="";            // <-- your UPI ID, e.g. "akshaykangude@okhdfcbank" (blank = QR placeholder)
+const UPI_NAME="ROBONEXA";   // payee name shown in the UPI app
+// ---- EmailJS: send real OTP emails from your mailbox with no server (emailjs.com) ----
+const EMAILJS={ publicKey:"", serviceId:"", templateId:"" };  // fill all three to enable real emails
 const FREE_SHIP_OVER=25000, SHIP_FLAT=499;
 const CUR=n=>"₹"+Number(n||0).toLocaleString("en-IN");
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -624,6 +640,36 @@ async function loadStockSheet(){
   stockSheet=map; if(document.body.classList.contains("detail")){/* re-render current detail if open */}
   renderGrid();
  }catch(_){/* no sheet / preview */}
+}
+/* ---- Inventory (private): read the Excel for stock + vendor + reorder ---- */
+let inventory=[];                       // [{sku,name,vendor,cost,sell,mrp,stock,reorder,...}]
+let invOverride=DB.get("invOverride",{});// admin edits kept per-browser: {sku:{stock,reorder}}
+const saveInvOv=()=>DB.set("invOverride",invOverride);
+const invStatus=(stock,reorder)=>stock<=0?"Out of stock":(stock<=reorder?"Reorder":"In stock");
+function parseInvWorkbook(ab){
+ if(typeof XLSX==="undefined")return [];
+ const wb=XLSX.read(ab,{type:"array"});
+ const nm=wb.SheetNames.find(n=>/inventory/i.test(n))||wb.SheetNames[0];
+ const ws=wb.Sheets[nm];if(!ws)return [];
+ return XLSX.utils.sheet_to_json(ws,{defval:""}).map(r=>({
+   sku:String(r["SKU"]||"").trim(),name:r["Product Name"]||"",category:r["Category"]||"",vendor:r["Vendor"]||"",
+   cost:+r["Cost Price (INR)"]||0,sell:+r["Selling Price (INR)"]||0,mrp:+r["MRP (INR)"]||0,
+   gst:r["GST %"]||"",hsn:r["HSN Code"]||"",stock:parseInt(r["Current Stock"],10)||0,reorder:parseInt(r["Reorder Level"],10)||0,
+   lead:r["Lead Time (days)"]||"",location:r["Location / Bin"]||"",country:r["Country of Origin"]||"",notes:r["Notes"]||""
+ })).filter(x=>x.sku);
+}
+function applyInventoryToStock(){
+ if(!inventory.length)return;
+ inventory.forEach(r=>{const ov=invOverride[r.sku];stockSheet[r.sku]=(ov&&ov.stock!=null)?ov.stock:r.stock;});
+ renderGrid(); if(document.body.classList.contains("admin"))renderAdmin();
+}
+async function loadInventory(){
+ try{const r=await fetch(INVENTORY_FILE,{cache:"no-store"});if(!r.ok)return;const ab=await r.arrayBuffer();inventory=parseInvWorkbook(ab);applyInventoryToStock();}catch(_){/* not committed / preview — admin can load from computer */}
+}
+/* export helper for plain-text files (e.g. stock.csv) */
+function exportText(name,path,text){
+ openModal("Export — "+name,`<p class="formnote" style="margin-bottom:10px">Save this as <b>${esc(path)}</b> in your repo and commit it (public-safe — stock only).</p><div class="preview show"><div class="ph"><span>${esc(path)}</span><button class="btn btn-ghost" id="cpTx" style="font-size:11px;padding:5px 10px">Copy</button></div><pre id="txText">${esc(text)}</pre></div>`,true);
+ $("#cpTx").addEventListener("click",async e=>{try{await navigator.clipboard.writeText(document.getElementById("txText").textContent);e.currentTarget.textContent="Copied ✓";}catch(_){e.currentTarget.textContent="Select & copy";}});
 }
 const byId=id=>products.find(p=>p.id===id);
 const currentUser=()=>session?users[session]:null;
@@ -789,6 +835,19 @@ function wireReviewForm(p){
  }
 }
 
+/* ---- send a real email via EmailJS (no server); false if not configured/failed ---- */
+async function emailjsSend(params){
+ if(!EMAILJS.publicKey||!EMAILJS.serviceId||!EMAILJS.templateId) return false;
+ try{const r=await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({service_id:EMAILJS.serviceId,template_id:EMAILJS.templateId,user_id:EMAILJS.publicKey,template_params:params})});
+  return r.ok;}catch(_){return false;}
+}
+/* ---- which delivery tier does this address fall in? ---- */
+function locTier(city,state){
+ if((city||"").trim().toLowerCase()===STORE_CITY.toLowerCase()) return "city";
+ if((state||"").trim().toLowerCase()===STORE_STATE.toLowerCase()) return "state";
+ return "other";
+}
 /* ================= CART ================= */
 function addToCart(id,q=1){const p=byId(id);if(!p||p.stock<=0)return;cart[id]=(cart[id]||0)+q;saveC();updateCart();refreshCartBadge();}
 function setQty(id,n){if(n<=0)delete cart[id];else cart[id]=n;saveC();updateCart();}
@@ -808,14 +867,55 @@ $("#cartFoot").addEventListener("click",e=>{if(e.target.closest("#checkoutBtn"))
 function checkout(){
  const ids=Object.keys(cart).filter(byId);if(!ids.length)return;
  if(!session){closeCart();openAuth("You need an account to place an order.");return;}
+ closeCart();openAddressStep();
+}
+/* Step 1 — delivery address */
+function openAddressStep(){
+ const u=currentUser();
+ openModal("Delivery address",`
+  <form id="addrForm">
+   <div class="frow"><div class="field"><label>Full name <span class="req">*</span></label><input id="ad_name" value="${esc(u&&u.name||"")}" required></div><div class="field"><label>Phone <span class="req">*</span></label><input id="ad_phone" type="tel" required></div></div>
+   <div class="field"><label>Address <span class="req">*</span></label><textarea id="ad_addr" placeholder="House / building, street, area" required></textarea></div>
+   <div class="frow"><div class="field"><label>City <span class="req">*</span></label><input id="ad_city" required></div><div class="field"><label>State <span class="req">*</span></label><input id="ad_state" required></div></div>
+   <div class="field"><label>PIN code</label><input id="ad_pin" inputmode="numeric"></div>
+   <div class="err" id="ad_err"></div>
+   <button class="btn btn-grad big" type="submit">Continue to payment →</button>
+  </form>`);
+ $("#addrForm").addEventListener("submit",e=>{e.preventDefault();
+  const a={name:$("#ad_name").value.trim(),phone:$("#ad_phone").value.trim(),addr:$("#ad_addr").value.trim(),city:$("#ad_city").value.trim(),state:$("#ad_state").value.trim(),pin:$("#ad_pin").value.trim()};
+  if(!a.name||!a.phone||!a.addr||!a.city||!a.state){$("#ad_err").textContent="Please fill all required fields.";return;}
+  openPaymentStep(a);
+ });
+}
+/* Step 2 — UPI QR payment */
+function openPaymentStep(addr){
+ const ids=Object.keys(cart).filter(byId);
  const items=ids.map(id=>{const p=byId(id);return{id,name:p.name,price:p.price,qty:cart[id]};});
  const sub=subtotal(),ship=sub>=FREE_SHIP_OVER?0:SHIP_FLAT,tot=sub+ship;
- const order={id:"ORD-"+Date.now().toString().slice(-6),email:session,items,total:tot,status:"placed",date:Date.now()};
- orders.push(order);saveO();
- // email copy to store
- const body=`New order ${order.id} from ${STORE}:\n\n${items.map(i=>`• ${i.name} × ${i.qty} = ${CUR(i.price*i.qty)}`).join("\n")}\n\nSubtotal: ${CUR(sub)}\nShipping: ${ship?CUR(ship):"FREE"}\nTotal: ${CUR(tot)}\n\nCustomer: ${currentUser().name} (${session})`;
- window.location.href=`mailto:${ORDER_EMAIL}?subject=${encodeURIComponent("Order "+order.id+" — "+CUR(tot))}&body=${encodeURIComponent(body)}`;
- cart={};saveC();updateCart();closeCart();toast("Order placed! ("+order.id+")");
+ const tier=locTier(addr.city,addr.state);
+ const anyMTO=ids.some(id=>!stockOf(byId(id)).inStock);
+ const days=(anyMTO?LEADTIME.procureDays:0)+(LEADTIME.deliver[tier]??LEADTIME.deliver.other);
+ const oid="ORD-"+Date.now().toString().slice(-6);
+ const tierLabel=tier==="city"?"within "+STORE_CITY:tier==="state"?"within "+STORE_STATE:"out of state";
+ const upi=UPI_VPA?`upi://pay?pa=${encodeURIComponent(UPI_VPA)}&pn=${encodeURIComponent(UPI_NAME)}&am=${tot}&cu=INR&tn=${encodeURIComponent(oid)}`:"";
+ openModal("Pay "+CUR(tot),`
+  <div style="text-align:center">
+   <div style="font-size:12.5px;color:var(--muted)">Order ${oid} · deliver to ${esc(addr.city)}, ${esc(addr.state)} (${tierLabel})</div>
+   <div style="margin:8px 0 16px;font-size:14px">📦 Delivery in <b>${days} days</b> — by <b>${addDays(days)}</b>${anyMTO?` <span style="color:var(--muted)">(incl. ~${LEADTIME.procureDays}-day sourcing)</span>`:""}</div>
+   ${upi?`<div id="qrBox" style="display:inline-block;padding:14px;background:#fff;border-radius:14px;border:1px solid var(--line)"></div>
+     <div style="margin-top:12px;font-size:14px">Scan with any UPI app (GPay / PhonePe / Paytm) and pay <b>${CUR(tot)}</b></div>
+     <div class="mono" style="font-size:12px;color:var(--muted);margin-top:4px">${esc(UPI_VPA)}</div>`
+    :`<div style="background:var(--buy-soft);color:var(--buy-ink);border-radius:12px;padding:14px;font-size:13px;line-height:1.6">Set your <b>UPI ID</b> in the code (<span class="mono">UPI_VPA</span>) and a live payment QR for <b>${CUR(tot)}</b> will show here.</div>`}
+   <button class="btn btn-buy big" id="paidBtn" style="margin-top:16px">I've paid — place my order</button>
+   <p class="cart-note">After paying, tap the button. We confirm your order and delivery by email.</p>
+  </div>`);
+ if(upi&&window.QRCode){try{new QRCode(document.getElementById("qrBox"),{text:upi,width:200,height:200,correctLevel:QRCode.CorrectLevel.M});}catch(_){}}
+ $("#paidBtn").addEventListener("click",()=>{
+  const order={id:oid,email:session,items,total:tot,status:"placed",date:Date.now(),address:addr,tier,etaDays:days};
+  orders.push(order);saveO();
+  emailjsSend({to_email:ORDER_EMAIL,subject:"New order "+oid+" — "+CUR(tot),message:`${items.map(i=>i.name+" ×"+i.qty).join(", ")}\nTotal ${CUR(tot)}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days`,code:""});
+  cart={};saveC();updateCart();closeModal();toast("Order placed! ("+oid+")");
+ });
 }
 /* drawer */
 const cartEl=$("#cart"),scrim=$("#scrim");
@@ -864,6 +964,11 @@ function openAdminLogin(){
 /* ---- forgot password + OTP (demo; live = email backend) ---- */
 let otpState=null;
 const genOTP=()=>""+Math.floor(100000+Math.random()*900000);
+function otpBanner(email,code,sent,purpose){
+ return sent
+  ? `<div style="background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:12px;padding:13px 15px;font-size:13px;color:var(--brand-ink);margin-bottom:16px">✓ A 6-digit ${purpose} code has been emailed to <b>${esc(email)}</b>. Check your inbox (and spam).</div>`
+  : `<div style="background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:12px;padding:13px 15px;font-size:12.5px;color:var(--brand-ink);margin-bottom:16px"><b>Demo:</b> email isn't configured yet — in the live store this is emailed to <b>${esc(email)}</b>. For now, your code is:<div class="mono" style="font-size:26px;font-weight:700;letter-spacing:6px;text-align:center;margin-top:8px;color:var(--ink)">${code}</div></div>`;
+}
 function openForgot(pref){
  openModal("Reset your password",`
   <form id="fpForm1">
@@ -872,19 +977,18 @@ function openForgot(pref){
    <div class="err" id="fp_err"></div>
    <button class="btn btn-grad big" type="submit">Send code</button>
   </form>`);
- $("#fpForm1").addEventListener("submit",e=>{e.preventDefault();
+ $("#fpForm1").addEventListener("submit",async e=>{e.preventDefault();
   const email=$("#fp_email").value.trim().toLowerCase();
   if(!users[email]){$("#fp_err").textContent="No account is registered with this email.";return;}
   const code=genOTP();otpState={email,code,exp:Date.now()+10*60000};
-  showOtpStep(email,code);
+  const btn=$("#fpForm1").querySelector("button");btn.textContent="Sending…";btn.disabled=true;
+  const sent=await emailjsSend({to_email:email,subject:"Your ROBONEXA password reset code",message:"Your password reset code is "+code,code});
+  showOtpStep(email,code,sent);
  });
 }
-function showOtpStep(email,code){
+function showOtpStep(email,code,sent){
  openModal("Enter verification code",`
-  <div style="background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:12px;padding:13px 15px;font-size:12.5px;color:var(--brand-ink);margin-bottom:16px">
-   <b>Demo:</b> in the live store this code is emailed to <b>${esc(email)}</b> from your office mail. For now, your code is:
-   <div class="mono" style="font-size:26px;font-weight:700;letter-spacing:6px;text-align:center;margin-top:8px;color:var(--ink)">${code}</div>
-  </div>
+  ${otpBanner(email,code,sent,"reset")}
   <form id="fpForm2">
    <div class="field"><label>6-digit code <span class="req">*</span></label><input id="fp_code" inputmode="numeric" maxlength="6" placeholder="——————"></div>
    <div class="field"><label>New password <span class="req">*</span></label><input id="fp_new" type="password"></div>
@@ -903,14 +1007,12 @@ function showOtpStep(email,code){
 }
 /* ---- email verification on sign up (demo; live = email backend) ---- */
 let pendingSignup=null;
-function startSignupVerify(name,email,pass){
+async function startSignupVerify(name,email,pass){
  const code=genOTP();pendingSignup={name,email,pass,code,exp:Date.now()+10*60000};
+ openModal("Verify your email",`<p class="formnote" style="padding:10px 0">Sending a verification code to <b>${esc(email)}</b>…</p>`);
+ const sent=await emailjsSend({to_email:email,subject:"Your ROBONEXA verification code",message:"Your verification code is "+code,code});
  openModal("Verify your email",`
-  <div style="background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:12px;padding:13px 15px;font-size:12.5px;color:var(--brand-ink);margin-bottom:16px">
-   To confirm <b>${esc(email)}</b> is really yours, we've sent a 6-digit code to it.
-   <div style="margin-top:6px"><b>Demo:</b> in the live store this is emailed. Your code is:</div>
-   <div class="mono" style="font-size:26px;font-weight:700;letter-spacing:6px;text-align:center;margin-top:8px;color:var(--ink)">${code}</div>
-  </div>
+  ${otpBanner(email,code,sent,"verification")}
   <form id="svForm">
    <div class="field"><label>Enter the 6-digit code <span class="req">*</span></label><input id="sv_code" inputmode="numeric" maxlength="6" placeholder="——————"></div>
    <div class="err" id="sv_err"></div>
@@ -1020,6 +1122,7 @@ function renderAdmin(){
   <div class="admin-tabs">
    <button data-at="products" aria-pressed="${adminTab==='products'}">Products (${products.length})</button>
    <button data-at="add" aria-pressed="${adminTab==='add'}">+ Add product</button>
+   <button data-at="inventory" aria-pressed="${adminTab==='inventory'}">📦 Inventory</button>
    <button data-at="orders" aria-pressed="${adminTab==='orders'}">Orders (${orders.length})</button>
    <button data-at="customers" aria-pressed="${adminTab==='customers'}">Customers (${Object.keys(users).length})</button>
    <button data-at="reviews" aria-pressed="${adminTab==='reviews'}">Reviews (${reviews.length})</button>
@@ -1047,6 +1150,27 @@ function renderAdminPanel(revenue){
   host.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{if(b.dataset.armed){products=products.filter(x=>x.id!==b.dataset.del);saveP();toast("Product deleted");renderAdmin();renderGrid();}else{b.dataset.armed="1";b.textContent="Sure?";setTimeout(()=>{if(b.isConnected){b.dataset.armed="";b.textContent="Delete";}},2500);}}));
  }
  else if(adminTab==="add"){host.innerHTML=productForm(editing?byId(editing):null);wireProductForm();}
+ else if(adminTab==="inventory"){
+  const src=inventory.length?inventory:products.map(p=>({sku:p.id,name:p.name,vendor:"",stock:stockOf(p).qty,reorder:0,cost:0,sell:p.price,lead:"",location:"",country:p.country||""}));
+  const rows=src.map(r=>{const ov=invOverride[r.sku]||{};const stock=(ov.stock!=null)?ov.stock:r.stock;const reorder=(ov.reorder!=null)?ov.reorder:r.reorder;return {...r,stock,reorder,status:invStatus(stock,reorder)};});
+  const alerts=rows.filter(r=>r.status!=="In stock");
+  host.innerHTML=`
+   <div style="background:var(--buy-soft);border:1px solid color-mix(in srgb,var(--buy) 32%,transparent);border-radius:12px;padding:12px 15px;font-size:12px;color:var(--buy-ink);margin-bottom:14px;line-height:1.6"><b>⚠ Keep this private.</b> Cost prices &amp; vendor contacts are sensitive and a GitHub Pages repo is public. Prefer loading the sheet from your computer here, and commit only <b>stock.csv</b> for the public store.</div>
+   ${alerts.length?`<div style="background:color-mix(in srgb,var(--warn) 16%,transparent);border:1px solid var(--warn);border-radius:12px;padding:12px 15px;margin-bottom:14px"><b style="color:var(--warn)">🔔 ${alerts.length} item${alerts.length>1?"s":""} need reordering:</b><div style="margin-top:6px;font-size:13px">${alerts.map(a=>`${esc(a.name)} → <b>📞 contact ${esc(a.vendor||"vendor")}</b>`).join("<br>")}</div></div>`:""}
+   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+     <button class="btn btn-ghost btn-sm" id="invBrowse">📁 Load inventory from my computer</button>
+     <button class="btn btn-ghost btn-sm" id="invExport">⭳ Export stock.csv (public-safe)</button>
+     <input type="file" id="invFile" accept=".xlsx,.xls" hidden>
+   </div>
+   <div class="tablewrap"><table class="atable"><thead><tr><th>SKU</th><th>Product</th><th>Vendor</th><th>Stock</th><th>Reorder ≤</th><th>Status</th><th>Action</th></tr></thead><tbody>
+   ${rows.map(r=>{const cls=r.status==="Out of stock"?"iout":r.status==="Reorder"?"ilow":"iok";return `<tr class="invrow ${cls}"><td class="mono">${esc(r.sku)}</td><td>${esc(r.name)}</td><td>${esc(r.vendor||"—")}</td><td><input class="invin" data-sku="${esc(r.sku)}" data-f="stock" type="number" value="${r.stock}" style="width:66px;padding:6px"></td><td><input class="invin" data-sku="${esc(r.sku)}" data-f="reorder" type="number" value="${r.reorder}" style="width:66px;padding:6px"></td><td><span class="istat ${cls}">${r.status}</span></td><td>${r.status!=="In stock"?`<span style="font-size:12px;font-weight:600;color:var(--buy-ink)">📞 Contact ${esc(r.vendor||"vendor")}</span>`:'<span style="color:var(--muted);font-size:12px">—</span>'}</td></tr>`;}).join("")}
+   </tbody></table></div>
+   <p class="formnote" style="margin-top:10px">Edit stock here to update the live store instantly (saved on this device). For permanent records, update the Excel and commit. ${inventory.length?"":"<b>Tip:</b> load your ROBONEXA_Inventory.xlsx to see vendors and cost data."}</p>`;
+  host.querySelector("#invBrowse").addEventListener("click",()=>host.querySelector("#invFile").click());
+  host.querySelector("#invFile").addEventListener("change",async e=>{const f=e.target.files[0];if(!f)return;try{const ab=await f.arrayBuffer();inventory=parseInvWorkbook(ab);applyInventoryToStock();renderAdmin();toast("Inventory loaded ("+inventory.length+" items)");}catch(_){toast("Could not read that file");}});
+  host.querySelector("#invExport").addEventListener("click",()=>exportText("stock.csv","products/stock.csv",["id,stock"].concat(rows.map(r=>r.sku+","+r.stock)).join("\n")));
+  host.querySelectorAll(".invin").forEach(inp=>inp.addEventListener("change",()=>{const sku=inp.dataset.sku,f=inp.dataset.f;invOverride[sku]=invOverride[sku]||{};invOverride[sku][f]=parseInt(inp.value,10)||0;saveInvOv();applyInventoryToStock();renderAdmin();}));
+ }
  else if(adminTab==="orders"){
   host.innerHTML=orders.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th style="text-align:right">Action</th></tr></thead><tbody>
    ${orders.slice().reverse().map(o=>`<tr><td class="mono">${o.id}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}</div></td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td style="font-size:12px">${o.items.map(i=>esc(i.name)+" ×"+i.qty).join("<br>")}</td><td class="mono">${CUR(o.total)}</td><td><span class="badge2 ${o.status}">${o.status}</span></td><td style="text-align:right">${o.status==="placed"?`<button class="btn btn-brand btn-sm" data-deliver="${o.id}">Mark delivered</button>`:"✓"}</td></tr>`).join("")}
@@ -1219,4 +1343,5 @@ $("#yr").textContent=new Date().getFullYear();
 renderCats();renderGrid();updateCart();refreshAccount();
 loadRepoProducts();
 loadStockSheet();
+loadInventory();
 </script>
