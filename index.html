@@ -323,6 +323,16 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 .badge2.placed{background:var(--brand-soft);color:var(--brand-ink)}
 .badge2.delivered{background:color-mix(in srgb,var(--save) 18%,transparent);color:var(--save)}
 .badge2.preorder{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.track{display:flex;gap:0;margin-top:12px;overflow-x:auto}
+.tstep{flex:1;min-width:58px;text-align:center;position:relative}
+.tstep::before{content:"";position:absolute;top:12px;left:-50%;width:100%;height:2px;background:var(--line-2)}
+.tstep:first-child::before{display:none}
+.tstep.done::before{background:var(--save)}
+.tdot{width:24px;height:24px;border-radius:50%;background:var(--surface-2);border:2px solid var(--line-2);color:var(--muted);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto;position:relative;z-index:1}
+.tstep.done .tdot{background:var(--save);border-color:var(--save);color:#fff}
+.tstep.now .tdot{background:var(--brand);border-color:var(--brand);color:#04222a;box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 22%,transparent)}
+.tlab{font-size:10px;color:var(--muted);margin-top:5px;line-height:1.2}
+.tstep.done .tlab,.tstep.now .tlab{color:var(--ink);font-weight:600}
 .invrow.iout td{background:var(--buy-soft)}
 .invrow.ilow td{background:color-mix(in srgb,var(--warn) 14%,transparent)}
 .istat{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
@@ -479,6 +489,10 @@ const CUR=n=>"₹"+Number(n||0).toLocaleString("en-IN");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const flags={India:"🇮🇳",China:"🇨🇳",Germany:"🇩🇪",Japan:"🇯🇵",USA:"🇺🇸","South Korea":"🇰🇷",Taiwan:"🇹🇼",Italy:"🇮🇹"};
+/* order fulfilment stages (owner advances these from admin) */
+const ORDER_STAGES=[["placed","Order placed"],["packed","Packed"],["shipped","Shipped"],["in_transit","In transit"],["out_for_delivery","Out for delivery"],["delivered","Delivered"]];
+const stageLabel=s=>{const f=ORDER_STAGES.find(x=>x[0]===s);return f?f[1]:(s==="cancelled"?"Cancelled":s);};
+const stageIndex=s=>ORDER_STAGES.findIndex(x=>x[0]===s);
 
 /* ================= ICONS ================= */
 const SV=p=>`<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
@@ -624,6 +638,8 @@ function deviceInfo(){try{return{ua:navigator.userAgent,platform:navigator.platf
 function stockOf(p){const q=(p&&p.id in stockSheet)?stockSheet[p.id]:(p?p.stock:0);return {qty:Number(q)||0,inStock:(Number(q)||0)>0};}
 /* procurement days for a product: sheet's lead column, else product.procureDays, else global */
 function procureDaysOf(p){const id=p&&p.id;if(id&&id in leadSheet)return leadSheet[id];if(p&&p.procureDays)return Number(p.procureDays)||LEADTIME.procureDays;return LEADTIME.procureDays;}
+/* split an ordered quantity into what ships now vs what goes on pre-order */
+function splitQty(p,q){const avail=Math.max(0,stockOf(p).qty);const now=Math.min(q,avail);return {now,pre:q-now};}
 function deliveryDays(inStock,loc,procure){const d=LEADTIME.deliver[loc]??LEADTIME.deliver.other;return (inStock?0:(procure??LEADTIME.procureDays))+d;}
 function addDays(n){const d=new Date();d.setDate(d.getDate()+n);return d.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"});}
 async function loadStockSheet(){
@@ -669,7 +685,7 @@ const currentUser=()=>session?users[session]:null;
 
 /* ratings from reviews */
 function ratingOf(pid){const r=reviews.filter(x=>x.pid===pid);if(!r.length)return{avg:0,n:0};return{avg:r.reduce((s,x)=>s+x.rating,0)/r.length,n:r.length};}
-function hasPurchased(email,pid){return orders.some(o=>o.email===email&&o.items.some(i=>i.id===pid));}
+function hasPurchased(email,pid){return orders.some(o=>o.email===email&&o.status==="delivered"&&o.items.some(i=>i.id===pid));}
 function hasReviewed(email,pid){return reviews.some(r=>r.email===email&&r.pid===pid);}
 
 /* ================= HELPERS ================= */
@@ -755,11 +771,7 @@ function renderDetail(p){
        <button class="btn ${stockOf(p).inStock?"btn-buy":""}" id="dAdd" ${stockOf(p).inStock?"":'style="background:var(--warn);color:#fff"'}>${stockOf(p).inStock?"Add to cart":"Pre-order"}</button>
        <button class="btn btn-grad" id="dBuy">${stockOf(p).inStock?"Buy now":"Pre-order now"}</button>
      </div>
-     <div class="deliver">
-       <div style="font-size:12px;color:var(--muted);margin-bottom:7px">📦 Estimated delivery — where are you?</div>
-       <div class="locpick" id="locPick"><button type="button" data-loc="city" aria-pressed="true">My city</button><button type="button" data-loc="state">My state</button><button type="button" data-loc="other">Other state</button></div>
-       <div class="deliver-est" id="deliverEst"></div>
-     </div>
+     <div class="deliver" id="deliverBox"></div>
     </div>
     <ul class="hi-list">${(p.highlights||[]).map(h=>`<li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>${esc(h)}</li>`).join("")}</ul>
    </div>
@@ -774,11 +786,53 @@ function renderDetail(p){
  $("#dBuy").addEventListener("click",()=>{addToCart(p.id,q);openCart();});
  $$("#viewDetail .th").forEach(t=>t.addEventListener("click",()=>{const i=+t.dataset.img;$("#galMain").innerHTML=imgs[i]?`<img src="${esc(imgs[i])}">`:media(p);$$("#viewDetail .th").forEach(x=>x.classList.toggle("sel",x===t));}));
  $$("#viewDetail .dtab").forEach(t=>t.addEventListener("click",()=>{detailTab=t.dataset.dt;$$("#viewDetail .dtab").forEach(x=>x.setAttribute("aria-pressed",x===t));renderDetailPanels(p);}));
- const est=$("#deliverEst"),sk=stockOf(p);
- const proc=procureDaysOf(p);
- const showEst=loc=>{const days=deliveryDays(sk.inStock,loc,proc);est.innerHTML=`<b>${days} days</b> — by <b>${addDays(days)}</b>${sk.inStock?"":` <span style="color:var(--muted)">(incl. ~${proc}-day sourcing)</span>`}`;};
- showEst("city");
- $("#locPick").addEventListener("click",e=>{const b=e.target.closest("[data-loc]");if(!b)return;$$("#locPick button").forEach(x=>x.setAttribute("aria-pressed",x===b));showEst(b.dataset.loc);});
+ renderDeliver(p);
+}
+/* delivery estimate: uses the customer's SAVED address to auto-pick the tier */
+function renderDeliver(p){
+ const box=$("#deliverBox");if(!box)return;
+ const sk=stockOf(p),proc=procureDaysOf(p),u=currentUser(),a=u&&u.addr;
+ if(a&&a.city){
+  const tier=locTier(a.city,a.state),days=deliveryDays(sk.inStock,tier,proc);
+  const tlabel=tier==="city"?"in "+STORE_CITY:tier==="state"?"within "+STORE_STATE:"out of state";
+  box.innerHTML=`<div style="font-size:12px;color:var(--muted);margin-bottom:6px">📦 Deliver to your saved address</div>
+   <div style="font-size:13.5px;font-weight:600">${esc(a.city)}, ${esc(a.state)} <span style="color:var(--muted);font-weight:400">(${tlabel})</span></div>
+   <div class="deliver-est" style="margin-top:6px"><b>${days} days</b> — by <b>${addDays(days)}</b>${sk.inStock?"":` <span style="color:var(--muted)">(incl. ~${proc}-day sourcing)</span>`}</div>
+   <button class="linkbtn" id="chgAddr" style="margin-top:8px">Change address</button>`;
+  $("#chgAddr").addEventListener("click",()=>openProfile(()=>renderDeliver(p)));
+ } else if(u){
+  box.innerHTML=`<div style="font-size:13px;color:var(--ink-2)">📦 Add your delivery address to see your exact delivery date.</div><button class="btn btn-ghost btn-sm" id="addAddr" style="margin-top:10px">Add delivery address</button>`;
+  $("#addAddr").addEventListener("click",()=>openProfile(()=>renderDeliver(p)));
+ } else {
+  box.innerHTML=`<div style="font-size:12.5px;color:var(--ink-2);margin-bottom:7px">📦 <button class="linkbtn" id="dLogin">Log in</button> &amp; save your address for an exact date. Quick estimate:</div>
+   <div class="locpick" id="locPick"><button type="button" data-loc="city" aria-pressed="true">My city</button><button type="button" data-loc="state">My state</button><button type="button" data-loc="other">Other state</button></div>
+   <div class="deliver-est" id="deliverEst"></div>`;
+  const showEst=loc=>{const days=deliveryDays(sk.inStock,loc,proc);$("#deliverEst").innerHTML=`<b>${days} days</b> — by <b>${addDays(days)}</b>${sk.inStock?"":` <span style="color:var(--muted)">(incl. ~${proc}-day sourcing)</span>`}`;};
+  showEst("city");
+  $("#dLogin").addEventListener("click",()=>openAuth());
+  $("#locPick").addEventListener("click",e=>{const b=e.target.closest("[data-loc]");if(!b)return;$$("#locPick button").forEach(x=>x.setAttribute("aria-pressed",x===b));showEst(b.dataset.loc);});
+ }
+}
+/* customer profile + saved address (name, mobile, address) kept on the account */
+function openProfile(cb){
+ const u=currentUser();if(!u){openAuth();return;}
+ const a=u.addr||{};
+ openModal("My details & address",`
+  <form id="prForm">
+   <div class="frow"><div class="field"><label>Full name <span class="req">*</span></label><input id="pr_name" value="${esc(u.name||"")}" required></div><div class="field"><label>Mobile number <span class="req">*</span></label><input id="pr_phone" type="tel" value="${esc(u.phone||"")}" required></div></div>
+   <div class="field"><label>Address <span class="req">*</span></label><textarea id="pr_addr" placeholder="House / building, street, area" required>${esc(a.line||"")}</textarea></div>
+   <div class="frow"><div class="field"><label>City <span class="req">*</span></label><input id="pr_city" value="${esc(a.city||"")}" required></div><div class="field"><label>State <span class="req">*</span></label><input id="pr_state" value="${esc(a.state||"")}" required></div></div>
+   <div class="field"><label>PIN code</label><input id="pr_pin" inputmode="numeric" value="${esc(a.pin||"")}"></div>
+   <div class="field"><label>Email (login ID)</label><input value="${esc(u.email)}" disabled></div>
+   <div class="err" id="pr_err"></div>
+   <button class="btn btn-grad big" type="submit">Save details</button>
+  </form>`);
+ $("#prForm").addEventListener("submit",e=>{e.preventDefault();
+  const name=$("#pr_name").value.trim(),phone=$("#pr_phone").value.trim(),line=$("#pr_addr").value.trim(),city=$("#pr_city").value.trim(),state=$("#pr_state").value.trim(),pin=$("#pr_pin").value.trim();
+  if(!name||!phone||!line||!city||!state){$("#pr_err").textContent="Please fill all required fields.";return;}
+  u.name=name;u.phone=phone;u.addr={line,city,state,pin};saveU();
+  closeModal();refreshAccount();toast("Details saved");if(cb)cb();
+ });
 }
 function renderDetailPanels(p){
  const r=ratingOf(p.id),host=$("#dpanels");let h="";
@@ -866,7 +920,7 @@ function updateCart(){
  refreshCartBadge();
  const ids=Object.keys(cart).filter(byId),items=$("#cartItems"),foot=$("#cartFoot");
  if(!ids.length){items.innerHTML=`<div class="drawer-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.3a1.5 1.5 0 0 0 1.5 1.2h8.2a1.5 1.5 0 0 0 1.5-1.2L22 7H6"/></svg><p>Your cart is empty.</p></div>`;foot.innerHTML="";return;}
- items.innerHTML=ids.map(id=>{const p=byId(id),q=cart[id];const pre=!stockOf(p).inStock;return `<div class="citem"><div class="thumb">${media(p)}</div><div><h4>${esc(p.name)}${pre?'<span class="pretag">PRE-ORDER</span>':''}</h4><div class="cp">${CUR(p.price)} each</div><div class="qty"><button data-dec="${id}">−</button><span>${q}</span><button data-inc="${id}">+</button></div></div><div class="line-r"><span class="lprice">${CUR(p.price*q)}</span><button class="rm" data-rm="${id}">Remove</button></div></div>`;}).join("");
+ items.innerHTML=ids.map(id=>{const p=byId(id),q=cart[id];const s=splitQty(p,q);const note=s.pre>0?`<div style="font-size:11px;color:var(--warn);margin-top:5px">${s.now>0?"✓ "+s.now+" ship now &nbsp;+&nbsp; ":""}🕒 ${s.pre} on pre-order (~${procureDaysOf(p)} days)</div>`:"";return `<div class="citem"><div class="thumb">${media(p)}</div><div><h4>${esc(p.name)}${s.pre>0?'<span class="pretag">PRE-ORDER</span>':''}</h4><div class="cp">${CUR(p.price)} each</div>${note}<div class="qty"><button data-dec="${id}">−</button><span>${q}</span><button data-inc="${id}">+</button></div></div><div class="line-r"><span class="lprice">${CUR(p.price*q)}</span><button class="rm" data-rm="${id}">Remove</button></div></div>`;}).join("");
  const sub=subtotal(),ship=sub>=FREE_SHIP_OVER?0:SHIP_FLAT,tot=sub+ship;
  foot.innerHTML=`<div class="row"><span>Subtotal</span><span class="mono">${CUR(sub)}</span></div><div class="row"><span>Shipping</span><span class="mono">${ship?CUR(ship):"FREE"}</span></div><div class="row tot"><span>Total</span><span>${CUR(tot)}</span></div><p class="ship">${sub>=FREE_SHIP_OVER?"🎉 You qualify for free shipping":`Add ${CUR(FREE_SHIP_OVER-sub)} more for free shipping`}</p><button class="btn btn-buy big" id="checkoutBtn">${session?"Place order":"Login & checkout"}</button><p class="ship" style="text-align:center;margin:10px 0 0">Online payment (UPI/card) — setup pending. Order also emailed to us.</p>`;
 }
@@ -879,19 +933,21 @@ function checkout(){
 }
 /* Step 1 — delivery address */
 function openAddressStep(){
- const u=currentUser();
+ const u=currentUser(),sa=(u&&u.addr)||{};
  openModal("Delivery address",`
+  <p class="formnote" style="margin-bottom:12px">${u&&u.addr?"Using your saved address — edit if needed.":"We'll save this to your account for next time."}</p>
   <form id="addrForm">
-   <div class="frow"><div class="field"><label>Full name <span class="req">*</span></label><input id="ad_name" value="${esc(u&&u.name||"")}" required></div><div class="field"><label>Phone <span class="req">*</span></label><input id="ad_phone" type="tel" required></div></div>
-   <div class="field"><label>Address <span class="req">*</span></label><textarea id="ad_addr" placeholder="House / building, street, area" required></textarea></div>
-   <div class="frow"><div class="field"><label>City <span class="req">*</span></label><input id="ad_city" required></div><div class="field"><label>State <span class="req">*</span></label><input id="ad_state" required></div></div>
-   <div class="field"><label>PIN code</label><input id="ad_pin" inputmode="numeric"></div>
+   <div class="frow"><div class="field"><label>Full name <span class="req">*</span></label><input id="ad_name" value="${esc((u&&u.name)||"")}" required></div><div class="field"><label>Mobile number <span class="req">*</span></label><input id="ad_phone" type="tel" value="${esc((u&&u.phone)||"")}" required></div></div>
+   <div class="field"><label>Address <span class="req">*</span></label><textarea id="ad_addr" placeholder="House / building, street, area" required>${esc(sa.line||"")}</textarea></div>
+   <div class="frow"><div class="field"><label>City <span class="req">*</span></label><input id="ad_city" value="${esc(sa.city||"")}" required></div><div class="field"><label>State <span class="req">*</span></label><input id="ad_state" value="${esc(sa.state||"")}" required></div></div>
+   <div class="field"><label>PIN code</label><input id="ad_pin" inputmode="numeric" value="${esc(sa.pin||"")}"></div>
    <div class="err" id="ad_err"></div>
    <button class="btn btn-grad big" type="submit">Continue to payment →</button>
   </form>`);
  $("#addrForm").addEventListener("submit",e=>{e.preventDefault();
   const a={name:$("#ad_name").value.trim(),phone:$("#ad_phone").value.trim(),addr:$("#ad_addr").value.trim(),city:$("#ad_city").value.trim(),state:$("#ad_state").value.trim(),pin:$("#ad_pin").value.trim()};
   if(!a.name||!a.phone||!a.addr||!a.city||!a.state){$("#ad_err").textContent="Please fill all required fields.";return;}
+  if(u){u.name=a.name;u.phone=a.phone;u.addr={line:a.addr,city:a.city,state:a.state,pin:a.pin};saveU();refreshAccount();}  // save to account
   openPaymentStep(a);
  });
 }
@@ -902,7 +958,7 @@ function openPaymentStep(addr){
  const items=ids.map(id=>{const p=byId(id);return{id,name:p.name,price:p.price,qty:cart[id]};});
  const sub=subtotal(),ship=sub>=FREE_SHIP_OVER?0:SHIP_FLAT,tot=sub+ship;
  const tier=locTier(addr.city,addr.state);
- const mtoLeads=ids.filter(id=>!stockOf(byId(id)).inStock).map(id=>procureDaysOf(byId(id)));
+ const mtoLeads=ids.filter(id=>splitQty(byId(id),cart[id]).pre>0).map(id=>procureDaysOf(byId(id)));
  const anyMTO=mtoLeads.length>0;
  const days=(anyMTO?Math.max(...mtoLeads):0)+(LEADTIME.deliver[tier]??LEADTIME.deliver.other);
  const oid="ORD-"+Date.now().toString().slice(-6);
@@ -920,10 +976,10 @@ function openPaymentStep(addr){
 }
 function placeOrder(ctx,method,ref){
  const {addr,items,tot,tier,days,oid}=ctx;
- const items2=items.map(i=>({...i,preorder:!stockOf(byId(i.id)).inStock}));
- const isPre=items2.some(i=>i.preorder);
- orders.push({id:oid,email:session,items:items2,total:tot,status:isPre?"preorder":"placed",date:Date.now(),address:addr,tier,etaDays:days,method,paymentRef:ref||"",preorder:isPre});saveO();
- mailSend(ORDER_EMAIL,(isPre?"PRE-ORDER ":"New order ")+oid+" — "+CUR(tot),`${items2.map(i=>i.name+" ×"+i.qty+(i.preorder?" (PRE-ORDER)":"")).join(", ")}\nTotal ${CUR(tot)}\nPayment: ${method}${ref?" ("+ref+")":""}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days${isPre?"\n\n** Contains pre-order items — source & confirm dispatch. **":""}`,"");
+ const items2=items.map(i=>{const s=splitQty(byId(i.id),i.qty);return {...i,qtyNow:s.now,qtyPre:s.pre,preorder:s.pre>0};});
+ const isPre=items2.some(i=>i.qtyPre>0);
+ orders.push({id:oid,email:session,items:items2,total:tot,status:"placed",date:Date.now(),address:addr,tier,etaDays:days,method,paymentRef:ref||"",preorder:isPre});saveO();
+ mailSend(ORDER_EMAIL,(isPre?"PRE-ORDER ":"New order ")+oid+" — "+CUR(tot),`${items2.map(i=>i.name+" ×"+i.qty+(i.qtyPre>0?" ["+i.qtyNow+" now + "+i.qtyPre+" PRE-ORDER]":"")).join("\n")}\nTotal ${CUR(tot)}\nPayment: ${method}${ref?" ("+ref+")":""}\n${addr.name}, ${addr.phone}\n${addr.addr}, ${addr.city}, ${addr.state} ${addr.pin}\nETA ${days} days${isPre?"\n\n** Contains pre-order items — source the pre-order quantities & confirm dispatch. **":""}`,"");
  cart={};saveC();updateCart();closeModal();toast(isPre?"Pre-order placed! ("+oid+")":"Order placed! ("+oid+")");
 }
 function showUpiPay(ctx){
@@ -1126,6 +1182,7 @@ function refreshAccount(){
  let h="";
  if(u){h+=`<div class="mini">Signed in as</div><div style="padding:2px 11px 8px;font-weight:600;font-size:13.5px">${esc(u.name)}<div style="font-weight:400;color:var(--muted);font-size:12px">${esc(u.email)}</div></div><div class="divide"></div>`;
    h+=`<button id="mOrders"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 0 1-8 0"/></svg>My orders</button>`;
+   h+=`<button id="mProfile"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 11-8 11s-8-5-8-11a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>My details &amp; address</button>`;
  }else{h+=`<button id="mLogin"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>Log in / Sign up</button>`;}
  // Admin entry is hidden from customers — it only appears here once you have
  // unlocked admin via the secret trick (5 taps on the footer, Ctrl+Shift+A, or #master).
@@ -1134,6 +1191,7 @@ function refreshAccount(){
  acctMenu.innerHTML=h;
  acctMenu.querySelector("#mLogin")?.addEventListener("click",()=>{closeMenu();openAuth();});
  acctMenu.querySelector("#mOrders")?.addEventListener("click",()=>{closeMenu();openOrders();});
+ acctMenu.querySelector("#mProfile")?.addEventListener("click",()=>{closeMenu();openProfile();});
  acctMenu.querySelector("#mAdminIn")?.addEventListener("click",()=>{closeMenu();openAdminLogin();});
  acctMenu.querySelector("#mAdmin")?.addEventListener("click",()=>{closeMenu();renderAdmin();goAdmin();});
  acctMenu.querySelector("#mAdminOut")?.addEventListener("click",()=>{closeMenu();adminLogout();});
@@ -1154,9 +1212,19 @@ $("#footOrders").addEventListener("click",e=>{e.preventDefault();session?openOrd
 })();
 
 /* ================= MY ORDERS ================= */
+function orderTracker(o){
+ if(o.status==="cancelled")return `<div style="color:var(--buy-ink);font-weight:600;font-size:13px;margin-top:10px">✕ Order cancelled</div>`;
+ const cur=stageIndex(o.status);
+ return `<div class="track">${ORDER_STAGES.map(([v,l],i)=>`<div class="tstep ${i<=cur?"done":""} ${i===cur?"now":""}"><div class="tdot">${i<cur?"✓":i+1}</div><div class="tlab">${l}</div></div>`).join("")}</div>`;
+}
 function openOrders(){
  const mine=orders.filter(o=>o.email===session).sort((a,b)=>b.date-a.date);
- openModal("My orders",mine.length?mine.map(o=>`<div style="border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b class="mono">${o.id}</b><span class="badge2 ${o.status}">${o.status==="delivered"?"Delivered":"Order placed"}</span></div><div style="font-size:13px;color:var(--ink-2)">${o.items.map(i=>`${esc(i.name)} × ${i.qty}`).join("<br>")}</div><div style="display:flex;justify-content:space-between;margin-top:10px;font-size:13px"><span style="color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}</span><b>${CUR(o.total)}</b></div>${o.status==="delivered"?`<p class="formnote" style="margin-top:8px;color:var(--save)">✓ You can now review these products on their pages.</p>`:""}</div>`).join(""):'<p style="color:var(--muted);text-align:center;padding:30px 0">No orders yet.<br>When you place an order it appears here.</p>');
+ openModal("My orders",mine.length?mine.map(o=>`<div style="border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b class="mono">${o.id}${o.preorder?'<span class="pretag" style="margin-left:6px">PRE-ORDER</span>':''}</b><span class="badge2 ${o.status==="delivered"?"delivered":o.status==="cancelled"?"preorder":"placed"}">${stageLabel(o.status)}</span></div>
+   <div style="font-size:13px;color:var(--ink-2)">${o.items.map(i=>`${esc(i.name)} × ${i.qty}`+(i.qtyPre>0?` <span style="color:var(--warn)">(${i.qtyNow||0} now + ${i.qtyPre} pre-order ~${procureDaysOf(byId(i.id))||o.etaDays}d)</span>`:"")).join("<br>")}</div>
+   ${orderTracker(o)}
+   <div style="display:flex;justify-content:space-between;margin-top:12px;font-size:13px"><span style="color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}${o.etaDays?" · est. "+o.etaDays+" days":""}</span><b>${CUR(o.total)}</b></div>
+   ${o.status==="delivered"?`<p class="formnote" style="margin-top:8px;color:var(--save)">✓ Delivered — you can now review these products on their pages.</p>`:""}</div>`).join(""):'<p style="color:var(--muted);text-align:center;padding:30px 0">No orders yet.<br>When you place an order it appears here.</p>');
 }
 
 /* ================= ADMIN DASHBOARD ================= */
@@ -1249,18 +1317,18 @@ function renderAdminPanel(revenue){
   host.querySelectorAll(".invin").forEach(inp=>inp.addEventListener("change",()=>{const sku=inp.dataset.sku,f=inp.dataset.f;invOverride[sku]=invOverride[sku]||{};invOverride[sku][f]=parseInt(inp.value,10)||0;saveInvOv();applyInventoryToStock();renderAdmin();}));
  }
  else if(adminTab==="orders"){
-  host.innerHTML=orders.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th style="text-align:right">Action</th></tr></thead><tbody>
-   ${orders.slice().reverse().map(o=>`<tr><td class="mono">${o.id}${o.preorder?'<span class="pretag" style="margin-left:0">PRE-ORDER</span>':''}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}${o.etaDays?" · ETA "+o.etaDays+"d":""}</div></td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td style="font-size:12px">${o.items.map(i=>esc(i.name)+" ×"+i.qty+(i.preorder?' <span style="color:var(--warn)">(pre-order)</span>':"")).join("<br>")}</td><td class="mono">${CUR(o.total)}</td><td><span class="badge2 ${o.status==="delivered"?"delivered":o.preorder?"preorder":"placed"}">${o.status}</span></td><td style="text-align:right">${o.status!=="delivered"?`<button class="btn btn-brand btn-sm" data-deliver="${o.id}">Mark delivered</button>`:"✓"}</td></tr>`).join("")}
-   </tbody></table></div><p class="formnote" style="margin-top:12px"><b>Pre-order</b> rows contain out-of-stock items — source them, then mark <b>delivered</b> once dispatched (which also lets the customer review).</p>`:'<p style="color:var(--muted);padding:30px 0">No orders yet.</p>';
-  host.querySelectorAll("[data-deliver]").forEach(b=>b.addEventListener("click",()=>{const o=orders.find(x=>x.id===b.dataset.deliver);if(o){o.status="delivered";saveO();toast("Marked delivered");renderAdmin();}}));
+  host.innerHTML=orders.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Update status</th></tr></thead><tbody>
+   ${orders.slice().reverse().map(o=>`<tr><td class="mono">${o.id}${o.preorder?'<span class="pretag" style="margin-left:0">PRE-ORDER</span>':''}<div style="font-size:11px;color:var(--muted)">${new Date(o.date).toLocaleDateString("en-IN")}${o.etaDays?" · ETA "+o.etaDays+"d":""}</div></td><td>${esc(users[o.email]?.name||o.email)}<div style="font-size:11px;color:var(--muted)">${esc(o.email)}</div></td><td style="font-size:12px">${o.items.map(i=>esc(i.name)+" ×"+i.qty+(i.qtyPre>0?' <span style="color:var(--warn)">('+(i.qtyNow||0)+' now + '+i.qtyPre+' pre-order)</span>':"")).join("<br>")}</td><td class="mono">${CUR(o.total)}</td><td><select class="ordsel" data-order="${o.id}">${ORDER_STAGES.map(([v,l])=>`<option value="${v}" ${o.status===v?"selected":""}>${l}</option>`).join("")}<option value="cancelled" ${o.status==="cancelled"?"selected":""}>Cancelled</option></select></td></tr>`).join("")}
+   </tbody></table></div><p class="formnote" style="margin-top:12px">Change the dropdown to advance an order — the customer sees the live status in <b>My orders</b>. Marking <b>Delivered</b> also lets them review.</p>`:'<p style="color:var(--muted);padding:30px 0">No orders yet.</p>';
+  host.querySelectorAll(".ordsel").forEach(sel=>sel.addEventListener("change",()=>{const o=orders.find(x=>x.id===sel.dataset.order);if(o){o.status=sel.value;saveO();toast("Order "+o.id+" → "+stageLabel(sel.value));}}));
  }
  else if(adminTab==="customers"){
   const list=Object.values(users);
   host.innerHTML=`<div style="background:var(--buy-soft);border:1px solid color-mix(in srgb,var(--buy) 32%,transparent);border-radius:12px;padding:12px 15px;font-size:12.5px;color:var(--buy-ink);margin-bottom:16px;line-height:1.6"><b>⚠ Security note:</b> The password column below works only in this local demo. In the live store, passwords are <b>encrypted</b> and no one — not even you — can read them; you reset them instead. That's how I'll build the production version to keep your customers safe.</div>`+
-   (list.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Name</th><th>Login ID (email)</th><th>Password (demo)</th><th>Orders</th><th style="text-align:right">Action</th></tr></thead><tbody>
-   ${list.map(u=>`<tr><td><b>${esc(u.name)}</b></td><td class="mono">${esc(u.email)}</td><td class="mono">${esc(u.pass)}</td><td>${orders.filter(o=>o.email===u.email).length}</td><td style="text-align:right"><button class="btn btn-ghost btn-sm" data-reset="${esc(u.email)}">Reset password</button></td></tr>`).join("")}
+   (list.length?`<div class="tablewrap"><table class="atable"><thead><tr><th>Name</th><th>Login ID (email)</th><th>Mobile</th><th>Address</th><th>Password (demo)</th><th>Orders</th><th style="text-align:right">Action</th></tr></thead><tbody>
+   ${list.map(u=>{const a=u.addr||{};return `<tr><td><b>${esc(u.name)}</b></td><td class="mono">${esc(u.email)}</td><td class="mono">${esc(u.phone||"—")}</td><td style="font-size:12px;max-width:200px">${a.city?esc((a.line?a.line+", ":"")+a.city+", "+a.state+(a.pin?" "+a.pin:"")):'<span style="color:var(--muted)">—</span>'}</td><td class="mono">${esc(u.pass)}</td><td>${orders.filter(o=>o.email===u.email).length}</td><td style="text-align:right"><button class="btn btn-ghost btn-sm" data-reset="${esc(u.email)}">Reset password</button></td></tr>`;}).join("")}
    </tbody></table></div>`:'<p style="color:var(--muted);padding:30px 0">No customers have signed up yet. When someone creates an account it appears here.</p>');
-  if(list.length){const bar=document.createElement("div");bar.style.cssText="display:flex;justify-content:flex-end;margin:-6px 0 12px";bar.innerHTML=`<button class="btn btn-ghost btn-sm" id="exCust">⭳ Export customers.json</button>`;host.appendChild(bar);bar.querySelector("#exCust").addEventListener("click",()=>exportJSON("Customers","data/users/users.json",Object.values(users).map(u=>({name:u.name,email:u.email,verified:!!u.verified}))));}
+  if(list.length){const bar=document.createElement("div");bar.style.cssText="display:flex;justify-content:flex-end;margin:-6px 0 12px";bar.innerHTML=`<button class="btn btn-ghost btn-sm" id="exCust">⭳ Export customers.json</button>`;host.appendChild(bar);bar.querySelector("#exCust").addEventListener("click",()=>exportJSON("Customers","data/users/users.json",Object.values(users).map(u=>({name:u.name,email:u.email,phone:u.phone||"",address:u.addr||null,verified:!!u.verified}))));}
   host.querySelectorAll("[data-reset]").forEach(b=>b.addEventListener("click",()=>adminReset(b.dataset.reset)));
  }
  else if(adminTab==="reviews"){
