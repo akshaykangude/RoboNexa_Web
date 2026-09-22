@@ -476,6 +476,7 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg><span id="toastMsg">Done</span></div>
 
 <script src="config.js"></script>
+<script src="cities.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
@@ -485,6 +486,8 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
    Change them there — you don't need to touch this file. */
 if(typeof RAZORPAY_KEY_ID==="undefined"){var RAZORPAY_KEY_ID="";}
 if(typeof ADMIN_2FA_EMAIL==="undefined"){var ADMIN_2FA_EMAIL="akshaykangude35@gmail.com";}
+if(typeof INDIA_STATES==="undefined"){var INDIA_STATES=[];}
+if(typeof INDIA_CITIES==="undefined"){var INDIA_CITIES={};}
 const CUR=n=>"₹"+Number(n||0).toLocaleString("en-IN");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -813,6 +816,51 @@ function renderDeliver(p){
   $("#locPick").addEventListener("click",e=>{const b=e.target.closest("[data-loc]");if(!b)return;$$("#locPick button").forEach(x=>x.setAttribute("aria-pressed",x===b));showEst(b.dataset.loc);});
  }
 }
+/* ---- state/city dropdowns + PIN verification for new cities ---- */
+function customCities(){try{return JSON.parse(localStorage.getItem("rbx_customCities")||"{}");}catch(_){return {};}}
+function addCustomCity(state,city){const c=customCities();c[state]=c[state]||[];if(!c[state].some(x=>x.toLowerCase()===city.toLowerCase())){c[state].push(city);try{localStorage.setItem("rbx_customCities",JSON.stringify(c));}catch(_){}}}
+function citiesFor(state){const base=(INDIA_CITIES[state]||[]).slice();(customCities()[state]||[]).forEach(c=>{if(!base.some(x=>x.toLowerCase()===c.toLowerCase()))base.push(c);});return base.sort((a,b)=>a.localeCompare(b));}
+function stateOptions(sel){return `<option value="">Select state…</option>`+INDIA_STATES.map(s=>`<option ${s===sel?"selected":""}>${esc(s)}</option>`).join("");}
+function cityOptions(state,sel){if(!state)return `<option value="">Select state first</option>`;return `<option value="">Select city…</option>`+citiesFor(state).map(c=>`<option ${c===sel?"selected":""}>${esc(c)}</option>`).join("")+`<option value="__other__">➕ My city isn't listed…</option>`;}
+function addrFields(P,a){a=a||{};return `
+  <div class="field"><label>Address <span class="req">*</span></label><textarea id="${P}_addr" placeholder="House / building, street, area" required>${esc(a.line||"")}</textarea></div>
+  <div class="frow"><div class="field"><label>State <span class="req">*</span></label><select id="${P}_state">${stateOptions(a.state)}</select></div>
+   <div class="field"><label>City <span class="req">*</span></label><select id="${P}_city">${cityOptions(a.state,a.city)}</select></div></div>
+  <div class="field" id="${P}_newWrap" hidden><label>Your city name <span class="req">*</span></label><input id="${P}_newcity" placeholder="Type your city"></div>
+  <div class="field"><label>PIN code <span class="req">*</span></label><input id="${P}_pin" inputmode="numeric" maxlength="6" value="${esc(a.pin||"")}" placeholder="6-digit PIN — verifies your city"></div>`;
+}
+function wireAddr(P){const st=$("#"+P+"_state"),ci=$("#"+P+"_city"),nw=$("#"+P+"_newWrap");
+ st.addEventListener("change",()=>{ci.innerHTML=cityOptions(st.value,"");nw.hidden=true;});
+ ci.addEventListener("change",()=>{nw.hidden=ci.value!=="__other__";});
+}
+async function verifyPin(pin,state){
+ try{const r=await fetch("https://api.postalpincode.in/pincode/"+encodeURIComponent(pin));const j=await r.json();const rec=Array.isArray(j)?j[0]:null;
+  if(!rec||rec.Status!=="Success"||!rec.PostOffice||!rec.PostOffice.length)return {ok:false,error:"That PIN code doesn't look valid — please check it."};
+  const st=rec.PostOffice[0].State||"";
+  if(st&&st.toLowerCase()!==state.toLowerCase())return {ok:false,error:"This PIN is in "+st+", not "+state+". Check your state or PIN."};
+  return {ok:true,district:rec.PostOffice[0].District||""};
+ }catch(_){return {ok:true,offline:true};}   // API unreachable (e.g. preview): don't block the customer
+}
+async function collectAddr(P,setErr){
+ const line=$("#"+P+"_addr").value.trim(),state=$("#"+P+"_state").value.trim(),pin=$("#"+P+"_pin").value.trim();
+ let city=$("#"+P+"_city").value;
+ if(!line){setErr("Please enter your address.");return null;}
+ if(!state){setErr("Please select your state.");return null;}
+ if(!city){setErr("Please select your city.");return null;}
+ if(!/^\d{6}$/.test(pin)){setErr("Enter a valid 6-digit PIN code.");return null;}
+ if(city==="__other__"){
+  city=$("#"+P+"_newcity").value.trim();
+  if(!city){setErr("Type your city name.");return null;}
+  setErr("Verifying your city…");
+  const v=await verifyPin(pin,state);
+  if(!v.ok){setErr(v.error);return null;}
+  addCustomCity(state,city);
+ }else{
+  const v=await verifyPin(pin,state);
+  if(!v.ok){setErr(v.error);return null;}
+ }
+ return {line,city,state,pin};
+}
 /* customer profile + saved address (name, mobile, address) kept on the account */
 function openProfile(cb){
  const u=currentUser();if(!u){openAuth();return;}
@@ -820,17 +868,20 @@ function openProfile(cb){
  openModal("My details & address",`
   <form id="prForm">
    <div class="frow"><div class="field"><label>Full name <span class="req">*</span></label><input id="pr_name" value="${esc(u.name||"")}" required></div><div class="field"><label>Mobile number <span class="req">*</span></label><input id="pr_phone" type="tel" value="${esc(u.phone||"")}" required></div></div>
-   <div class="field"><label>Address <span class="req">*</span></label><textarea id="pr_addr" placeholder="House / building, street, area" required>${esc(a.line||"")}</textarea></div>
-   <div class="frow"><div class="field"><label>City <span class="req">*</span></label><input id="pr_city" value="${esc(a.city||"")}" required></div><div class="field"><label>State <span class="req">*</span></label><input id="pr_state" value="${esc(a.state||"")}" required></div></div>
-   <div class="field"><label>PIN code</label><input id="pr_pin" inputmode="numeric" value="${esc(a.pin||"")}"></div>
+   ${addrFields("pr",a)}
    <div class="field"><label>Email (login ID)</label><input value="${esc(u.email)}" disabled></div>
    <div class="err" id="pr_err"></div>
    <button class="btn btn-grad big" type="submit">Save details</button>
   </form>`);
- $("#prForm").addEventListener("submit",e=>{e.preventDefault();
-  const name=$("#pr_name").value.trim(),phone=$("#pr_phone").value.trim(),line=$("#pr_addr").value.trim(),city=$("#pr_city").value.trim(),state=$("#pr_state").value.trim(),pin=$("#pr_pin").value.trim();
-  if(!name||!phone||!line||!city||!state){$("#pr_err").textContent="Please fill all required fields.";return;}
-  u.name=name;u.phone=phone;u.addr={line,city,state,pin};saveU();
+ wireAddr("pr");
+ $("#prForm").addEventListener("submit",async e=>{e.preventDefault();
+  const name=$("#pr_name").value.trim(),phone=$("#pr_phone").value.trim();
+  if(!name||!phone){$("#pr_err").textContent="Please enter your name and mobile number.";return;}
+  const btn=$("#prForm").querySelector("button[type=submit]");btn.disabled=true;
+  const addr=await collectAddr("pr",m=>$("#pr_err").textContent=m);
+  btn.disabled=false;
+  if(!addr)return;
+  u.name=name;u.phone=phone;u.addr=addr;saveU();
   closeModal();refreshAccount();toast("Details saved");if(cb)cb();
  });
 }
@@ -938,16 +989,20 @@ function openAddressStep(){
   <p class="formnote" style="margin-bottom:12px">${u&&u.addr?"Using your saved address — edit if needed.":"We'll save this to your account for next time."}</p>
   <form id="addrForm">
    <div class="frow"><div class="field"><label>Full name <span class="req">*</span></label><input id="ad_name" value="${esc((u&&u.name)||"")}" required></div><div class="field"><label>Mobile number <span class="req">*</span></label><input id="ad_phone" type="tel" value="${esc((u&&u.phone)||"")}" required></div></div>
-   <div class="field"><label>Address <span class="req">*</span></label><textarea id="ad_addr" placeholder="House / building, street, area" required>${esc(sa.line||"")}</textarea></div>
-   <div class="frow"><div class="field"><label>City <span class="req">*</span></label><input id="ad_city" value="${esc(sa.city||"")}" required></div><div class="field"><label>State <span class="req">*</span></label><input id="ad_state" value="${esc(sa.state||"")}" required></div></div>
-   <div class="field"><label>PIN code</label><input id="ad_pin" inputmode="numeric" value="${esc(sa.pin||"")}"></div>
+   ${addrFields("ad",sa)}
    <div class="err" id="ad_err"></div>
    <button class="btn btn-grad big" type="submit">Continue to payment →</button>
   </form>`);
- $("#addrForm").addEventListener("submit",e=>{e.preventDefault();
-  const a={name:$("#ad_name").value.trim(),phone:$("#ad_phone").value.trim(),addr:$("#ad_addr").value.trim(),city:$("#ad_city").value.trim(),state:$("#ad_state").value.trim(),pin:$("#ad_pin").value.trim()};
-  if(!a.name||!a.phone||!a.addr||!a.city||!a.state){$("#ad_err").textContent="Please fill all required fields.";return;}
-  if(u){u.name=a.name;u.phone=a.phone;u.addr={line:a.addr,city:a.city,state:a.state,pin:a.pin};saveU();refreshAccount();}  // save to account
+ wireAddr("ad");
+ $("#addrForm").addEventListener("submit",async e=>{e.preventDefault();
+  const name=$("#ad_name").value.trim(),phone=$("#ad_phone").value.trim();
+  if(!name||!phone){$("#ad_err").textContent="Please enter your name and mobile number.";return;}
+  const btn=$("#addrForm").querySelector("button[type=submit]");btn.disabled=true;
+  const ad=await collectAddr("ad",m=>$("#ad_err").textContent=m);
+  btn.disabled=false;
+  if(!ad)return;
+  const a={name,phone,addr:ad.line,city:ad.city,state:ad.state,pin:ad.pin};
+  if(u){u.name=name;u.phone=phone;u.addr={line:ad.line,city:ad.city,state:ad.state,pin:ad.pin};saveU();refreshAccount();}
   openPaymentStep(a);
  });
 }

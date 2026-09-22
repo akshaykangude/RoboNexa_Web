@@ -1,0 +1,47 @@
+/* Indian states/UTs + curated major cities. Any city not listed can be added by the
+   customer and is verified by PIN code (India Post) before it's accepted. */
+var INDIA_STATES = [
+ "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana",
+ "Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur",
+ "Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+ "Tripura","Uttar Pradesh","Uttarakhand","West Bengal","Andaman and Nicobar Islands","Chandigarh",
+ "Dadra and Nagar Haveli and Daman and Diu","Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"
+];
+var INDIA_CITIES = {
+ "Andhra Pradesh":["Visakhapatnam","Vijayawada","Guntur","Nellore","Kurnool","Tirupati","Rajahmundry","Kakinada","Anantapur","Kadapa"],
+ "Arunachal Pradesh":["Itanagar","Naharlagun","Pasighat","Tawang"],
+ "Assam":["Guwahati","Dibrugarh","Silchar","Jorhat","Nagaon","Tinsukia","Tezpur"],
+ "Bihar":["Patna","Gaya","Bhagalpur","Muzaffarpur","Darbhanga","Purnia","Bihar Sharif","Ara"],
+ "Chhattisgarh":["Raipur","Bhilai","Bilaspur","Korba","Durg","Rajnandgaon"],
+ "Goa":["Panaji","Margao","Vasco da Gama","Mapusa","Ponda"],
+ "Gujarat":["Ahmedabad","Surat","Vadodara","Rajkot","Bhavnagar","Jamnagar","Gandhinagar","Anand","Nadiad","Junagadh"],
+ "Haryana":["Gurugram","Faridabad","Panipat","Ambala","Hisar","Karnal","Rohtak","Sonipat","Yamunanagar"],
+ "Himachal Pradesh":["Shimla","Solan","Dharamshala","Mandi","Bilaspur","Kullu","Baddi"],
+ "Jharkhand":["Ranchi","Jamshedpur","Dhanbad","Bokaro","Hazaribagh","Deoghar"],
+ "Karnataka":["Bengaluru","Mysuru","Hubballi","Mangaluru","Belagavi","Kalaburagi","Davanagere","Ballari","Tumakuru","Shivamogga"],
+ "Kerala":["Thiruvananthapuram","Kochi","Kozhikode","Thrissur","Kollam","Kannur","Alappuzha","Palakkad"],
+ "Madhya Pradesh":["Indore","Bhopal","Jabalpur","Gwalior","Ujjain","Sagar","Ratlam","Rewa"],
+ "Maharashtra":["Mumbai","Pune","Nagpur","Nashik","Thane","Aurangabad","Solapur","Kolhapur","Amravati","Navi Mumbai","Pimpri-Chinchwad","Sangli","Satara","Ahmednagar","Jalgaon"],
+ "Manipur":["Imphal","Thoubal","Bishnupur"],
+ "Meghalaya":["Shillong","Tura","Jowai"],
+ "Mizoram":["Aizawl","Lunglei"],
+ "Nagaland":["Kohima","Dimapur","Mokokchung"],
+ "Odisha":["Bhubaneswar","Cuttack","Rourkela","Berhampur","Sambalpur","Puri","Balasore"],
+ "Punjab":["Ludhiana","Amritsar","Jalandhar","Patiala","Bathinda","Mohali","Hoshiarpur","Pathankot"],
+ "Rajasthan":["Jaipur","Jodhpur","Udaipur","Kota","Ajmer","Bikaner","Alwar","Bhilwara","Sikar"],
+ "Sikkim":["Gangtok","Namchi"],
+ "Tamil Nadu":["Chennai","Coimbatore","Madurai","Tiruchirappalli","Salem","Tirunelveli","Erode","Vellore","Thoothukudi","Tiruppur"],
+ "Telangana":["Hyderabad","Warangal","Nizamabad","Karimnagar","Khammam","Ramagundam","Secunderabad"],
+ "Tripura":["Agartala","Udaipur","Dharmanagar"],
+ "Uttar Pradesh":["Lucknow","Kanpur","Ghaziabad","Agra","Varanasi","Meerut","Noida","Allahabad","Bareilly","Aligarh","Moradabad","Gorakhpur","Jhansi"],
+ "Uttarakhand":["Dehradun","Haridwar","Roorkee","Haldwani","Rudrapur","Rishikesh","Nainital"],
+ "West Bengal":["Kolkata","Howrah","Durgapur","Asansol","Siliguri","Bardhaman","Kharagpur","Malda"],
+ "Andaman and Nicobar Islands":["Port Blair"],
+ "Chandigarh":["Chandigarh"],
+ "Dadra and Nagar Haveli and Daman and Diu":["Daman","Silvassa","Diu"],
+ "Delhi":["New Delhi","Delhi","Dwarka","Rohini","Saket","Pitampura"],
+ "Jammu and Kashmir":["Srinagar","Jammu","Anantnag","Baramulla","Udhampur"],
+ "Ladakh":["Leh","Kargil"],
+ "Lakshadweep":["Kavaratti"],
+ "Puducherry":["Puducherry","Karaikal","Yanam","Mahe"]
+};
