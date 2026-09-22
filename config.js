@@ -3,9 +3,10 @@
    After editing, commit & push:  git add config.js && git commit -m "settings" && git push
    ============================================================ */
 
-var STORE       = "ROBONEXA";                        // store name shown everywhere
-var ADMIN_PASS  = "Akshay";                          // Master / Admin password (secret admin login)
-var ORDER_EMAIL = "akshaykangude35@gmail.com";       // where order copies are emailed
+var STORE           = "ROBONEXA";                    // store name shown everywhere
+var ADMIN_PASS      = "Akshay";                       // Master / Admin password (secret admin login)
+var ADMIN_2FA_EMAIL = "akshaykangude35@gmail.com";   // admin login code is emailed here (owner's account)
+var ORDER_EMAIL     = "onlyshopes@gmail.com";        // store contact + where order copies are emailed
 
 /* ---- Your GitHub repo (admin "Choose from GitHub" picker) ---- */
 var GH_USER   = "akshaykangude";

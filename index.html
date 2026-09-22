@@ -445,8 +445,8 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
 <footer class="site"><div class="wrap">
   <div><a class="logo" href="#" id="footLogo">ROBO<b>NEXA</b></a><p>India's engineer-run robotics store — actuators, motors, drives, sensors and complete robots, with datasheets and real support.</p></div>
   <div><h5>Shop</h5><a href="#" data-fcat="robots">Robots &amp; AMRs</a><a href="#" data-fcat="actuators">Actuators &amp; motors</a><a href="#" data-fcat="drives">Drives &amp; controllers</a><a href="#" data-fcat="sensors">Sensors &amp; LiDAR</a></div>
-  <div><h5>Account</h5><a href="#" id="footLogin">Login / Sign up</a><a href="#" id="footOrders">My orders</a><a href="mailto:akshaykangude35@gmail.com">Help &amp; support</a></div>
-  <div><h5>Contact</h5><a href="mailto:akshaykangude35@gmail.com">akshaykangude35@gmail.com</a><a href="tel:+910000000000">+91 XXXXX XXXXX</a><a>Pune, Maharashtra · India</a></div>
+  <div><h5>Account</h5><a href="#" id="footLogin">Login / Sign up</a><a href="#" id="footOrders">My orders</a><a href="mailto:onlyshopes@gmail.com">Help &amp; support</a></div>
+  <div><h5>Contact</h5><a href="mailto:onlyshopes@gmail.com">onlyshopes@gmail.com</a><a href="tel:+910000000000">+91 XXXXX XXXXX</a><a>Pune, Maharashtra · India</a></div>
 </div><div class="wrap fbtm"><span id="footCopy">© <span id="yr"></span> ROBONEXA. All rights reserved.</span><span class="mono">Prices in ₹ INR</span></div></footer>
 
 <!-- ===== CART DRAWER ===== -->
@@ -471,6 +471,7 @@ body.admin #viewStore,body.admin .hero,body.admin .catstrip,body.admin .trust,bo
    admin password, UPI ID, Razorpay key, emails, GitHub repo, lead times, etc.
    Change them there — you don't need to touch this file. */
 if(typeof RAZORPAY_KEY_ID==="undefined"){var RAZORPAY_KEY_ID="";}
+if(typeof ADMIN_2FA_EMAIL==="undefined"){var ADMIN_2FA_EMAIL="akshaykangude35@gmail.com";}
 const CUR=n=>"₹"+Number(n||0).toLocaleString("en-IN");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -975,12 +976,29 @@ window.openAuth=function(msg){
   closeModal();refreshAccount();
  });
 };
+let adminOtp=null;
 function openAdminLogin(){
  openModal("Master / Admin login",`
-  <p class="formnote" style="margin-bottom:14px">Enter the store admin password to manage products, prices, images, discounts and orders.</p>
-  <form id="admForm"><div class="field"><label>Admin password <span class="req">*</span></label><input id="adm_pass" type="password" autocomplete="off"></div><div class="err" id="adm_err"></div><button class="btn btn-dark big" type="submit">Enter admin</button></form>
-  <p class="formnote" style="margin-top:12px">Set your password as <code>ADMIN_PASS</code> in <b>config.js</b>.</p>`);
- $("#admForm").addEventListener("submit",e=>{e.preventDefault();if($("#adm_pass").value===ADMIN_PASS){isAdmin=true;DB.set("admin",true);closeModal();refreshAccount();renderAdmin();goAdmin();toast("Admin mode enabled");}else $("#adm_err").textContent="Incorrect admin password.";});
+  <p class="formnote" style="margin-bottom:14px">Step 1 of 2 — enter your admin password. A verification code will then be emailed to the owner's account.</p>
+  <form id="admForm"><div class="field"><label>Admin password <span class="req">*</span></label><input id="adm_pass" type="password" autocomplete="off"></div><div class="err" id="adm_err"></div><button class="btn btn-dark big" type="submit">Continue</button></form>`);
+ $("#admForm").addEventListener("submit",async e=>{e.preventDefault();
+  if($("#adm_pass").value!==ADMIN_PASS){$("#adm_err").textContent="Incorrect admin password.";return;}
+  const code=genOTP();adminOtp={code,exp:Date.now()+10*60000};
+  const btn=$("#admForm").querySelector("button");btn.textContent="Sending code…";btn.disabled=true;
+  await mailSend(ADMIN_2FA_EMAIL,"ROBONEXA admin login code","A login to your ROBONEXA admin dashboard was requested. Use the code below to continue. If this wasn't you, please change your admin password.",code);
+  adminOtpStep();
+ });
+}
+function adminOtpStep(){
+ openModal("Verify it's you",`
+  <div style="background:var(--brand-soft);border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);border-radius:12px;padding:13px 15px;font-size:13px;color:var(--brand-ink);margin-bottom:16px">🔒 Step 2 of 2 — a 6-digit code has been emailed to the owner's account. Enter it to open the admin dashboard.</div>
+  <form id="admOtpForm"><div class="field"><label>6-digit code <span class="req">*</span></label><input id="adm_code" inputmode="numeric" maxlength="6" placeholder="——————"></div><div class="err" id="adm_err2"></div><button class="btn btn-dark big" type="submit">Verify &amp; open admin</button></form>`);
+ $("#admOtpForm").addEventListener("submit",e=>{e.preventDefault();
+  const c=$("#adm_code").value.trim();
+  if(!adminOtp||Date.now()>adminOtp.exp){$("#adm_err2").textContent="Code expired — start again.";return;}
+  if(c!==adminOtp.code){$("#adm_err2").textContent="Incorrect code.";return;}
+  adminOtp=null;isAdmin=true;DB.set("admin",true);closeModal();refreshAccount();renderAdmin();goAdmin();toast("Admin verified");
+ });
 }
 /* ---- forgot password + OTP (demo; live = email backend) ---- */
 let otpState=null;
